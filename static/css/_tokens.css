@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500&family=Sarabun:wght@400;500&display=swap');
+
+/* ─── Light mode (default) ──────────────────────────────────── */
+:root {
+  --bg-primary:       #ffffff;
+  --bg-surface:       #f7f6f3;
+  --bg-hover:         #f2f0ec;
+  --bg-active:        #ebe9e4;
+  --bg-input:         #f7f6f3;
+  --border-hairline:  #ebe9e4;
+  --border-emphasized:#d4d1ca;
+  --text-primary:     #1a1a1a;
+  --text-secondary:   #6b6560;
+  --text-tertiary:    #a09a94;
+  --text-disabled:    #c4c1bc;
+  --accent:           #ff5625;
+  --accent-soft-bg:   #fff2ed;
+  --success:          #1d8c3d;
+  --success-tint:     #f0f7f2;
+  --warning:          #b26a00;
+  --warning-bg:       #fff7ee;
+  --danger:           #c9302c;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 999px;
+
+  --font-kanit:   'Kanit', sans-serif;
+  --font-sarabun: 'Sarabun', sans-serif;
+  --font-heading: 'Kanit', sans-serif;
+  --font-body:    'Sarabun', sans-serif;
+
+  /* ─── Legacy aliases — keeps old CSS working unchanged ─── */
+  --bg:           var(--bg-primary);
+  --bg-card:      var(--bg-surface);
+  --bg-high:      var(--bg-hover);
+  --bg-highest:   #e8e6e2;
+  --accent-soft:  #ffc5b3;
+  --success-dim:  var(--success);
+  --text-1:       var(--text-primary);
+  --text-2:       var(--text-secondary);
+  --text-3:       var(--text-tertiary);
+  --border:       var(--border-hairline);
+  --radius:       var(--radius-md);
+}
+
+/* ─── Dark mode overrides ──────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-primary:       #131313;
+  --bg-surface:       #201f1f;
+  --bg-hover:         #2a2a2a;
+  --bg-active:        #353534;
+  --bg-input:         #1c1b1b;
+  --border-hairline:  #3a3634;
+  --border-emphasized:#5d4038;
+  --text-primary:     #e5e2e1;
+  --text-secondary:   #b0a9a4;
+  --text-tertiary:    #8a8380;
+  --text-disabled:    #4a4744;
+  --accent-soft-bg:   #2d1f18;
+  --success:          #27a644;
+  --success-tint:     #1c3522;
+  --warning:          #d4a04a;
+  --warning-bg:       #3a2e1e;
+
+  /* ─── Dark legacy aliases ─── */
+  --bg-highest:   #353534;
+  --accent-soft:  #ffb5a0;
+  --success-dim:  #66df75;
+  --text-2:       #e7bdb2;
+  --text-3:       #ad887e;
+  --border:       #5d4038;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sarabun);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background 0.15s, color 0.15s;
+}

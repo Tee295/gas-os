@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAS OS — POS</title>
+<script src="/static/js/_theme.js"></script>
+<link rel="stylesheet" href="/static/css/_tokens.css">
+<link rel="stylesheet" href="/static/css/_base.css">
+<link rel="stylesheet" href="/static/pos.css">
+<link rel="stylesheet" href="/static/leaflet.css">
+</head>
+<body>
+
+<!-- ── Login ──────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-header">
+    <span class="login-shop-name">ชัยเพ็ญ 1988 แก๊ส</span>
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+  <div class="login-body">
+    <h1 class="login-title">เข้าสู่ระบบพนักงาน</h1>
+    <span class="login-role-pill">Supervisor</span>
+
+    <div class="login-form-group">
+      <label class="form-label">เลือกชื่อ</label>
+      <select id="staff-select" class="login-select">
+        <option value="">-- เลือกพนักงาน --</option>
+      </select>
+    </div>
+
+    <div class="login-form-group">
+      <label class="form-label">รหัส PIN 4 หลัก</label>
+      <div class="pin-boxes" id="pin-boxes">
+        <div class="pin-box" id="pin-box-0"></div>
+        <div class="pin-box" id="pin-box-1"></div>
+        <div class="pin-box" id="pin-box-2"></div>
+        <div class="pin-box" id="pin-box-3"></div>
+      </div>
+    </div>
+
+    <div class="pin-grid">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn pin-del" onclick="pinBack()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+        </svg>
+      </button>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn pin-del" onclick="pinBack()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="login-submit-btn" id="btn-login" onclick="pinSubmit()" disabled>เข้าสู่ระบบ</button>
+    <div class="login-error" id="login-error"></div>
+    <p class="login-hint">ลืมรหัส PIN? ติดต่อผู้ดูแลระบบ</p>
+  </div>
+</div>
+
+<!-- ── Main App ────────────────────────────────────────────── -->
+<div id="app" style="display:none">
+
+  <!-- Top Bar -->
+  <div id="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-logo">ชัยเพ็ญ 1988 แก๊ส</span>
+      <span class="topbar-role-pill">Supervisor</span>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card"><div class="stat-label">ออเดอร์วันนี้</div><div class="stat-val" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">รอจัดส่ง</div><div class="stat-val stat-amber" id="stat-pending">0</div></div>
+      <div class="stat-card"><div class="stat-label">กำลังส่ง</div><div class="stat-val stat-orange" id="stat-delivering">0</div></div>
+      <div class="stat-card"><div class="stat-label">เงินสดค้าง</div><div class="stat-val" id="stat-cash">฿0</div></div>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-icon-btn" onclick="openStockModal()" title="สต็อกถัง">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      </button>
+      <button class="topbar-icon-btn" onclick="openRestockModal()" title="รับสินค้า">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </button>
+      <button class="topbar-icon-btn" onclick="openCashScreen()" title="รับเงินสดจาก Driver">
+        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      </button>
+      <button class="topbar-icon-btn" onclick="openDayendScreen()" title="ปิดกะวันนี้">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <button class="theme-toggle topbar-icon-btn" onclick="toggleTheme()" title="สลับโหมด">
+        <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button id="pane-toggle-btn" class="topbar-icon-btn" onclick="togglePhonePane()" title="รับออเดอร์" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+      <div class="topbar-avatar" id="topbar-avatar" onclick="logout()" title="ออกจากระบบ">--</div>
+    </div>
+  </div>
+
+  <!-- View Toggle Bar -->
+  <div id="view-toggle-bar">
+    <div class="pill-group view-pills">
+      <button class="pill active" id="pill-map" onclick="setView('map')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        แผนที่
+      </button>
+      <button class="pill" id="pill-cards" onclick="setView('cards')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        การ์ด
+      </button>
+      <button class="pill" id="pill-list" onclick="setView('list')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="0.5" fill="currentColor"/><circle cx="3" cy="12" r="0.5" fill="currentColor"/><circle cx="3" cy="18" r="0.5" fill="currentColor"/></svg>
+        รายการ
+      </button>
+    </div>
+    <div class="view-filter-chips">
+      <input type="date" class="filter-chip filter-chip-date" id="chip-date" onchange="loadKanban()" title="เลือกวันที่">
+      <select class="filter-chip filter-chip-select" id="chip-driver" onchange="filterByDriver()">
+        <option value="">ทุก Driver</option>
+      </select>
+      <button class="filter-refresh-btn" onclick="loadKanban()" title="รีเฟรช">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-4.36"/></svg>
+      </button>
+      <span id="conn-dot" class="conn-dot conn-ok" title="กำลังเชื่อมต่อ..."></span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div id="body-area">
+
+    <!-- Left: Map (main view) -->
+    <div id="map-pane" class="body-left body-main">
+      <div id="map-container"></div>
+
+      <!-- Filter panel -->
+      <div id="filter-panel">
+        <div class="fp-header">
+          <span class="fp-title">ตัวกรอง</span>
+          <button class="fp-toggle" onclick="toggleFilterPanel()" id="fp-chevron">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+        </div>
+        <div id="fp-body">
+          <div class="fp-section">แสดงออเดอร์</div>
+          <label class="fp-check"><input type="checkbox" id="fp-show-pending" checked onchange="renderMapPins()"><span class="sdot sdot-amber"></span> รอจัดส่ง <em id="fp-cnt-pending">(0)</em></label>
+          <label class="fp-check"><input type="checkbox" id="fp-show-delivering" checked onchange="renderMapPins()"><span class="sdot sdot-green"></span> กำลังส่ง <em id="fp-cnt-delivering">(0)</em></label>
+          <label class="fp-check"><input type="checkbox" id="fp-show-completed" onchange="renderMapPins()"><span class="sdot sdot-blue"></span> สำเร็จ 1ชม. <em id="fp-cnt-completed">(0)</em></label>
+          <label class="fp-check"><input type="checkbox" id="fp-show-cancelled" onchange="renderMapPins()"><span class="sdot sdot-red"></span> ยกเลิก <em id="fp-cnt-cancelled">(0)</em></label>
+          <hr class="fp-divider">
+          <div class="fp-section">Driver</div>
+          <select class="fp-select" id="fp-driver" onchange="renderMapPins()">
+            <option value="">ทั้งหมด</option>
+          </select>
+          <hr class="fp-divider">
+          <div class="fp-section">เวลา</div>
+          <label class="fp-radio"><input type="radio" name="tf" value="today" checked onchange="loadKanban()"> วันนี้</label>
+          <label class="fp-radio"><input type="radio" name="tf" value="4h" onchange="loadKanban()"> 4 ชั่วโมงล่าสุด</label>
+          <label class="fp-radio"><input type="radio" name="tf" value="2h" onchange="loadKanban()"> 2 ชั่วโมงล่าสุด</label>
+        </div>
+      </div>
+
+      <!-- Map controls -->
+      <div class="map-controls">
+        <button class="map-ctrl-btn" onclick="centerMap()" title="ศูนย์กลางออเดอร์">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+        </button>
+        <button class="map-ctrl-btn" id="map-locate-btn" onclick="mapLocate()" title="ตำแหน่งปัจจุบัน">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2.5 2"/></svg>
+        </button>
+      </div>
+
+      <!-- Pin popover -->
+      <div id="pin-popover" style="display:none">
+        <div class="pop-top">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="sdot" id="pop-status-dot"></span>
+            <span class="pop-order-num" id="pop-num"></span>
+          </div>
+          <button class="pop-close" onclick="closePopover()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="pop-cust" id="pop-cust"></div>
+        <div class="pop-driver" id="pop-driver" style="display:none"></div>
+        <div class="pop-items" id="pop-items"></div>
+        <div class="pop-row">
+          <span class="pop-amount" id="pop-amount"></span>
+          <span class="pop-pay-chip" id="pop-pay"></span>
+        </div>
+        <div class="pop-timing" id="pop-timing" style="display:none"></div>
+        <div class="pop-actions">
+          <button class="btn btn-secondary btn-sm" onclick="closePopover()">ปิด</button>
+          <button class="btn btn-success btn-sm" id="pop-complete" style="display:none">✓ จบงาน</button>
+          <button class="btn btn-primary btn-sm" id="pop-dispatch">จัดส่ง →</button>
+        </div>
+        <div class="pop-arrow"></div>
+      </div>
+    </div>
+
+    <!-- Right: Order Cards (compact view) -->
+    <div id="cards-pane" class="body-cards" style="display:none">
+      <div class="cards-header">
+        <span class="cards-title">ออเดอร์วันนี้</span>
+        <div class="cards-stats">
+          <span class="stat-pill stat-pending" id="cards-pending">รอ: 0</span>
+          <span class="stat-pill stat-delivering" id="cards-delivering">ส่ง: 0</span>
+          <span class="stat-pill stat-completed" id="cards-completed">เสร็จ: 0</span>
+        </div>
+      </div>
+      <div class="cards-container" id="cards-container">
+        <!-- Order cards will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Right: Kanban Pane (list view) -->
+    <div id="kanban-pane" class="body-cards">
+      <div class="kanban-cols">
+        <div class="kanban-col" id="col-pending">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">รอจัดส่ง</span>
+            <span class="kanban-col-count" id="cnt-pending">0</span>
+          </div>
+          <div class="kanban-col-body" id="body-pending"></div>
+        </div>
+        <div class="kanban-col" id="col-delivering">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">กำลังส่ง</span>
+            <span class="kanban-col-count" id="cnt-delivering">0</span>
+          </div>
+          <div class="kanban-col-body" id="body-delivering"></div>
+        </div>
+        <div class="kanban-col" id="col-completed">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">เสร็จสิ้น</span>
+            <span class="kanban-col-count" id="cnt-completed">0</span>
+          </div>
+          <div class="kanban-col-body" id="body-completed"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Phone Pickup Pane (always) -->
+    <div id="phone-pane">
+      <div class="pp-header">
+        <span class="pp-title">รับออเดอร์</span>
+        <button class="btn btn-primary btn-sm" onclick="openNewOrderModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          ออเดอร์ใหม่
+        </button>
+      </div>
+
+      <div class="phone-search-row" style="position:relative">
+        <div class="phone-search-wrap">
+          <svg class="phone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="cust-phone" class="phone-input" placeholder="ค้นเบอร์หรือชื่อ..."
+                 autocomplete="off" oninput="onPhoneInput()" onkeydown="onCustSearchKey(event)">
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="lookupCustomer()">ค้นหา</button>
+        <div id="name-search-results" class="name-search-results" style="display:none"></div>
+      </div>
+
+      <div id="phone-book-list" class="phone-book-list" style="display:none"></div>
+
+      <div id="customer-card" style="display:none">
+        <div class="cust-card">
+          <div class="cust-card-top">
+            <div>
+              <div class="cust-name" id="cust-name-display"></div>
+              <div class="cust-phone-disp" id="cust-phone-disp"></div>
+            </div>
+            <span class="badge badge-neutral" id="cust-tier-display"></span>
+          </div>
+          <div id="cust-credit-bar" style="display:none">
+            <div class="credit-label-row">
+              <span>เครดิตคงค้าง</span>
+              <span id="cust-credit-val" style="color:var(--warning)"></span>
+            </div>
+            <div class="credit-track"><div class="credit-fill" id="cust-credit-fill"></div></div>
+          </div>
+          <div id="last-order-section" style="display:none">
+            <div class="last-order-label">ออเดอร์ล่าสุด</div>
+            <div class="last-order-items" id="last-order-items"></div>
+          </div>
+          <div class="cust-actions">
+            <button class="btn btn-primary" style="flex:1" id="btn-repeat" onclick="quickRepeatOrder()">สั่งเหมือนเดิม [F1]</button>
+            <button class="btn btn-secondary" style="flex:1" onclick="openNewOrderModal()">สั่งใหม่ [N]</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="phone-empty" class="phone-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-disabled)" stroke-width="1"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.35 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.5 5.5l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <p>พิมพ์เบอร์โทรลูกค้า<br>เพื่อเริ่มออเดอร์</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Status Bar -->
+  <div id="status-bar">
+    <span>ค้นหา: / &nbsp;|&nbsp; ออเดอร์ใหม่: N &nbsp;|&nbsp; รีเฟรช: F5</span>
+    <span id="status-right"><span class="online-dot"></span><span id="status-clock"></span></span>
+  </div>
+</div>
+
+<!-- ── S4: Order Entry Screen (full-screen takeover) ───────── -->
+<div id="order-screen" style="display:none">
+
+  <!-- Order screen top bar -->
+  <div class="os-topbar">
+    <div class="os-topbar-left">
+      <button class="os-back-btn" onclick="closeOrderScreen()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="os-title">ออเดอร์ใหม่</span>
+      <span class="os-badge">แบบฟอร์ม</span>
+    </div>
+    <div class="os-topbar-right">
+      <button class="os-draft-btn">บันทึกร่าง</button>
+      <span class="os-esc-hint">[Esc] ยกเลิก</span>
+    </div>
+  </div>
+
+  <!-- Scrollable body -->
+  <div class="os-body">
+    <div class="os-inner">
+
+      <!-- S1: Customer -->
+      <div class="os-section">
+        <div class="os-sec-label">ลูกค้า</div>
+        <div class="os-cust-picker" id="os-cust-picker" onclick="osPickCustomer()">
+          <span class="os-cust-name" id="os-cust-name">-- เลือกลูกค้า --</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="os-cust-sub" id="os-cust-sub"></div>
+      </div>
+
+      <!-- S2: Items -->
+      <div class="os-section">
+        <div class="os-sec-hdr">
+          <span class="os-sec-title">รายการสินค้า</span>
+          <button class="os-add-btn" onclick="osShowProductPicker()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            เพิ่มสินค้า
+          </button>
+        </div>
+        <div id="os-items"></div>
+        <button class="os-add-row-btn" onclick="osShowProductPicker()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          เพิ่มสินค้า
+        </button>
+      </div>
+
+      <!-- S3: Fees -->
+      <div class="os-section">
+        <div class="os-sec-hdr">
+          <span class="os-sec-title">ค่าบริการเพิ่มเติม</span>
+          <button class="os-add-btn" onclick="osAddFee()">+ เพิ่ม</button>
+        </div>
+        <div id="os-fees"></div>
+      </div>
+
+      <!-- S4: Order type + Address -->
+      <div class="os-section">
+        <div class="os-sec-label">ประเภทออเดอร์</div>
+        <div class="os-type-row">
+          <label class="os-pm-card" id="ot-walkin">
+            <input type="radio" name="os-order-type" value="walkin" checked onchange="osOrderTypeChange()">
+            <span>หน้าร้าน</span>
+          </label>
+          <label class="os-pm-card" id="ot-delivery">
+            <input type="radio" name="os-order-type" value="delivery" onchange="osOrderTypeChange()">
+            <span>จัดส่ง</span>
+          </label>
+        </div>
+        <div id="os-address-row" style="display:none">
+          <div class="os-sec-label" style="margin-top:12px">ส่งที่</div>
+          <div class="os-address-card">
+            <div id="os-address-text" class="os-address-text">-- ไม่มีที่อยู่ --</div>
+            <button class="os-link-btn" onclick="osChangeAddress()">เปลี่ยน</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- S5: Payment -->
+      <div class="os-section">
+        <div class="os-sec-label">วิธีชำระ</div>
+        <div class="os-pm-row" id="os-pm-row"></div>
+      </div>
+
+      <!-- S6: Documents (B2B only) -->
+      <div class="os-section" id="os-docs-section" style="display:none">
+        <div class="os-sec-label">เอกสารเพิ่มเติม</div>
+        <label class="os-doc-card">
+          <input type="checkbox" id="os-want-dn" onchange="osToggleDN(this)">
+          <div>
+            <div class="os-doc-name">ใบส่งของ (DN)</div>
+            <div class="os-doc-num" id="os-dn-preview">สร้างอัตโนมัติ</div>
+          </div>
+        </label>
+        <label class="os-doc-card" style="margin-top:8px">
+          <input type="checkbox" id="os-want-inv" onchange="osToggleInv(this)">
+          <div style="flex:1">
+            <div class="os-doc-name">ใบกำกับภาษี (INV)</div>
+            <div class="os-doc-num" id="os-inv-preview">สร้างอัตโนมัติ</div>
+          </div>
+        </label>
+        <div id="os-inv-fields" style="display:none;margin-top:10px">
+          <input type="text" class="form-input" id="os-inv-name" placeholder="ชื่อบริษัท" style="margin-bottom:6px">
+          <input type="text" class="form-input" id="os-inv-tax"  placeholder="เลขผู้เสียภาษี" style="margin-bottom:6px">
+          <input type="text" class="form-input" id="os-inv-branch" placeholder="สาขา (ไม่จำเป็น)">
+        </div>
+      </div>
+
+      <!-- S7: Summary + Note + Actions -->
+      <div class="os-section os-summary-section">
+        <div class="os-sec-label">หมายเหตุ</div>
+        <input type="text" class="form-input" id="os-note" placeholder="หมายเหตุ (ไม่จำเป็น)" style="margin-bottom:20px">
+        <div class="os-summary-card" id="os-summary-card"></div>
+        <div class="os-actions">
+          <button class="os-cancel-btn" onclick="closeOrderScreen()">ยกเลิก</button>
+          <button class="os-submit-btn" id="os-submit-btn" onclick="submitOrderFromScreen()">บันทึก + ปริ้นใบงาน</button>
+        </div>
+        <p class="os-kb-hint">Enter ยืนยัน · Ctrl+P บันทึก+ปริ้น · Esc ยกเลิก</p>
+      </div>
+
+    </div><!-- /.os-inner -->
+  </div><!-- /.os-body -->
+
+  <!-- Product picker sheet (shown inside order screen) -->
+  <div id="os-product-sheet" style="display:none">
+    <div class="ops-header">
+      <span class="ops-title">เลือกสินค้า</span>
+      <button class="ops-close" onclick="osHideProductPicker()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="ops-list"></div>
+  </div>
+</div>
+
+<!-- ── S5: Dispatch Modal (bottom sheet) ───────────────────── -->
+<div id="dispatch-modal" style="display:none">
+  <div class="dm-backdrop" onclick="closeDispatchModal()"></div>
+  <div class="dm-sheet">
+    <div class="dm-handle"></div>
+    <div class="dm-header">
+      <div>
+        <div class="dm-header-row">
+          <span class="dm-title">จัดส่งออเดอร์</span>
+          <span class="dm-order-pill" id="dm-order-num"></span>
+        </div>
+        <div class="dm-cust-summary" id="dm-cust-summary"></div>
+      </div>
+      <button class="dm-close-btn" onclick="closeDispatchModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="dm-body">
+      <div id="dm-map"></div>
+      <div class="dm-section-title">เลือก Driver</div>
+      <div class="dm-drivers" id="dm-drivers"></div>
+      <div class="os-sec-label" style="margin-top:16px">หมายเหตุ (ถ้ามี)</div>
+      <textarea class="dm-note-input" id="dm-note" placeholder="เช่น: ลูกค้าแจ้งให้โทรก่อนส่ง" rows="2"></textarea>
+    </div>
+    <div class="dm-footer">
+      <div class="dm-footer-info">
+        <div class="dm-footer-driver" id="dm-footer-driver">เลือก Driver</div>
+        <div class="dm-footer-dist" id="dm-footer-dist"></div>
+      </div>
+      <div class="dm-footer-btns">
+        <button class="os-cancel-btn" onclick="closeDispatchModal()">ยกเลิก</button>
+        <button class="os-submit-btn" id="dm-confirm-btn" onclick="confirmDispatch()" disabled>จัดส่ง + ปริ้นใบงาน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modals ──────────────────────────────────────────────── -->
+
+<!-- Charge Confirm -->
+<div class="modal-overlay" id="charge-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">ยืนยันการชำระ</div>
+    <div id="charge-summary" style="margin-bottom:16px;font-size:14px;color:var(--text-secondary)"></div>
+    <div class="form-group"><label class="form-label">หมายเหตุ</label>
+      <input type="text" class="form-input" id="charge-note" placeholder="ไม่จำเป็น"></div>
+    <div class="form-group" id="invoice-fields" style="display:none">
+      <label class="form-label">ชื่อบริษัท (ใบกำกับภาษี)</label>
+      <input type="text" class="form-input" id="inv-name" placeholder="ชื่อบริษัท">
+      <input type="text" class="form-input" id="inv-tax" placeholder="เลขผู้เสียภาษี" style="margin-top:6px">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="need-invoice" onchange="toggleInvoiceFields()"> ต้องการใบกำกับภาษี
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('charge-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitOrder()">สร้างออเดอร์</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stock -->
+<div class="modal-overlay" id="stock-modal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <div class="modal-title">สต็อกถัง</div>
+    <div id="stock-table"></div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal('stock-modal')">ปิด</button></div>
+  </div>
+</div>
+
+<!-- Cash Clear -->
+<div class="modal-overlay" id="cash-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">เคลียร์เงินพนักงานส่ง</div>
+    <div class="form-group"><label class="form-label">เลือกคนส่ง</label>
+      <select class="form-select" id="cash-driver-select"></select></div>
+    <div id="cash-summary" style="font-size:13px;color:var(--text-secondary);margin:12px 0"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('cash-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="clearCash()">เคลียร์เงิน</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel -->
+<div class="modal-overlay" id="cancel-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">ยกเลิกออเดอร์</div>
+    <div id="cancel-order-display" style="font-family:var(--font-kanit);color:var(--accent);margin-bottom:12px"></div>
+    <div class="form-group"><label class="form-label">เหตุผล *</label>
+      <input type="text" class="form-input" id="cancel-reason" placeholder="ระบุเหตุผล"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('cancel-modal')">ไม่ยกเลิก</button>
+      <button class="btn btn-danger" onclick="confirmCancel()">ยกเลิกออเดอร์</button>
+    </div>
+  </div>
+</div>
+
+<!-- Restock (multi-product, single invoice) -->
+<div class="modal-overlay" id="restock-modal" style="display:none">
+  <div class="modal-box" style="width:520px;max-height:92vh">
+    <div class="modal-title">
+      รับสินค้าเข้าสต็อก
+      <span style="font-size:11px;color:var(--text-tertiary);font-weight:400;margin-left:8px">ใบกำกับภาษีเดียว หลายรายการ</span>
+    </div>
+
+    <!-- Invoice header -->
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">ซัพพลายเออร์</label>
+        <select class="form-select" id="restock-supplier-id">
+          <option value="">-- ไม่ระบุ --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">พนักงานรับถัง</label>
+        <select class="form-select" id="restock-pickup-staff"><option value="">-- ไม่ระบุ --</option></select>
+      </div>
+    </div>
+
+    <!-- Product lines -->
+    <div class="rs-lines-hdr">
+      <span>รายการสินค้า</span>
+      <button class="btn btn-secondary btn-sm" onclick="rsAddLine()">+ เพิ่มรายการ</button>
+    </div>
+    <div id="rs-lines"></div>
+
+    <!-- Tare -->
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">น้ำหนักแก๊สเหลือในถัง รวมทุกรายการ (กก.)</label>
+      <input type="number" class="form-input" id="restock-tare-kg" min="0" step="0.1" value="0" oninput="calcRestockTotal()">
+    </div>
+    <div id="restock-tare-info" style="display:none;background:var(--bg-surface);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px">
+      ส่วนลดทาเรอ: <span id="restock-tare-discount" style="color:var(--accent);font-weight:600">฿0</span>
+      &nbsp;|&nbsp; โบนัสพนักงาน: <span id="restock-tare-bonus" style="color:var(--success);font-weight:600">฿0</span>
+    </div>
+
+    <!-- Totals -->
+    <div class="rs-totals">
+      <div class="rs-total-row"><span>ยอดก่อน VAT</span><span id="restock-subtotal">฿0</span></div>
+      <div class="rs-total-row"><span>VAT 7%</span><span id="restock-vat">฿0</span></div>
+      <div class="rs-total-row rs-grand"><span>ยอดรวม (incl. VAT)</span><span id="restock-gross">฿0</span></div>
+      <div class="rs-total-row rs-tare"><span>ส่วนลดแก๊สเหลือ</span><span id="restock-tare-dis">฿0</span></div>
+      <div class="rs-total-row rs-net"><span>ยอดสุทธิ</span><span id="restock-net" style="color:var(--accent)">฿0</span></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('restock-modal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="submitRestock()">บันทึกรับสินค้า</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Address Map Picker (z-index 160, above order-screen 150) ── -->
+<div id="addr-picker" style="display:none">
+
+  <div class="os-topbar">
+    <div class="os-topbar-left">
+      <button class="os-back-btn" onclick="closeAddrPicker()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="os-title">ปักหมุดที่อยู่จัดส่ง</span>
+    </div>
+    <button class="ap-locate-btn" onclick="apGeolocate()" title="ตำแหน่งปัจจุบัน">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 2"/></svg>
+      ตำแหน่งฉัน
+    </button>
+  </div>
+
+  <!-- Map fills remaining height -->
+  <div id="ap-map"></div>
+
+  <!-- Crosshair label -->
+  <div class="ap-crosshair">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+  </div>
+
+  <!-- Bottom sheet -->
+  <div class="ap-footer">
+    <div class="ap-addr-display" id="ap-addr-display">
+      <div class="ap-addr-icon">📍</div>
+      <div class="ap-addr-text" id="ap-addr-text">คลิกหรือลากแผนที่เพื่อเลือกตำแหน่ง</div>
+    </div>
+    <button class="ap-confirm-btn" id="ap-confirm-btn" onclick="apConfirm()" disabled>
+      ยืนยันตำแหน่งนี้
+    </button>
+  </div>
+
+</div>
+
+<!-- Receipt (print only) -->
+<div id="receipt-template"></div>
+<div class="toast" id="toast" style="display:none"></div>
+
+<!-- ── S8: Cash Handover Screen ────────────────────────────── -->
+<div id="cash-screen" style="display:none">
+
+  <div class="os-topbar">
+    <div class="os-topbar-left">
+      <button class="os-back-btn" onclick="closeCashScreen()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="os-title">รับเงินสดจาก Driver</span>
+    </div>
+    <span class="cs-topbar-time" id="cs-clock">14:45 น.</span>
+  </div>
+
+  <div class="cs-body">
+    <div class="cs-inner">
+
+      <!-- Driver grid (populated dynamically) -->
+      <div class="cs-field-label">เลือก Driver</div>
+      <div class="cs-driver-grid" id="cs-driver-grid">
+        <div style="text-align:center;padding:16px;color:var(--text-disabled);font-size:0.82rem">กำลังโหลด...</div>
+      </div>
+
+      <!-- Orders to clear (populated dynamically) -->
+      <div class="cs-sec-hdr">ออเดอร์ที่รอรับเงิน</div>
+      <div class="cs-orders-wrap" id="cs-orders-wrap">
+        <div style="text-align:center;padding:12px;color:var(--text-disabled);font-size:0.82rem">เลือก Driver ก่อน</div>
+      </div>
+
+      <div class="cs-subtotal-row">
+        <span class="cs-subtotal-label">รวมที่รอรับ</span>
+        <span class="cs-subtotal-val" id="cs-expected">฿ 0</span>
+      </div>
+
+      <!-- Cash received input -->
+      <div class="cs-sec-hdr" style="margin-top:24px">เงินที่รับจริง</div>
+
+      <div class="cs-amount-wrap" id="cs-amount-wrap">
+        <span class="cs-amount-baht">฿</span>
+        <input type="number" class="cs-amount-input" id="cs-amount-input"
+               placeholder="0.00" oninput="csRecalc()">
+      </div>
+
+      <div class="cs-variance-row" id="cs-variance-row"></div>
+
+      <div id="cs-reason-wrap" style="display:none;margin-top:12px">
+        <div class="cs-field-label" style="margin-bottom:6px">ระบุสาเหตุ</div>
+        <textarea class="cs-reason-input" id="cs-reason"
+                  placeholder="เช่น: ลูกค้าให้ทิป / ทอนผิด"></textarea>
+      </div>
+
+      <div style="height:120px"></div>
+
+    </div>
+  </div>
+
+  <div class="cs-footer">
+    <div class="cs-footer-summary" id="cs-footer-summary">เลือก Driver เพื่อรับเงิน</div>
+    <button class="cs-confirm-btn" id="cs-confirm-btn" disabled onclick="csConfirm()">ยืนยันรับเงิน</button>
+  </div>
+
+</div>
+
+<!-- ── S9: Day-end Summary Screen ──────────────────────────── -->
+<div id="dayend-screen" style="display:none">
+
+  <div class="os-topbar">
+    <div class="os-topbar-left">
+      <button class="os-back-btn" onclick="closeDayendScreen()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="os-title">ปิดกะวันนี้</span>
+    </div>
+    <span class="de-topbar-date" id="de-topbar-date">19 เมษายน 2569</span>
+  </div>
+
+  <div class="de-body">
+    <div class="de-inner">
+
+      <!-- KPI grid 2×2 -->
+      <div class="de-kpi-grid">
+
+        <div class="kpi-card">
+          <div class="kpi-label">ออเดอร์ทั้งหมด</div>
+          <div class="kpi-value" id="de-kpi-orders">--</div>
+          <div class="de-delta de-delta-neutral">&nbsp;</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">ยอดขาย</div>
+          <div class="kpi-value" id="de-kpi-sales" style="font-size:1.3rem">--</div>
+          <div class="de-delta">&nbsp;</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">เงินสดรับ</div>
+          <div class="kpi-value" id="de-kpi-cash" style="font-size:1.3rem">--</div>
+          <div class="de-delta">&nbsp;</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">เครดิตค้างใหม่</div>
+          <div class="kpi-value warning" id="de-kpi-credit" style="font-size:1.3rem">--</div>
+          <div class="de-delta">&nbsp;</div>
+        </div>
+
+      </div>
+
+      <!-- Payment breakdown -->
+      <div class="de-section-title">สรุปช่องทางชำระ</div>
+
+      <div class="de-payment-card">
+        <div class="de-pay-row">
+          <span class="de-pay-icon">💵</span>
+          <span class="de-pay-lbl">เงินสด</span>
+          <span class="de-pay-count" id="de-pay-cash-count">(0 ออเดอร์)</span>
+          <span class="de-pay-amt"  id="de-pay-cash-amt">฿ 0</span>
+        </div>
+        <div class="de-pay-row">
+          <span class="de-pay-icon">📱</span>
+          <span class="de-pay-lbl">โอน PromptPay</span>
+          <span class="de-pay-count" id="de-pay-transfer-count">(0 ออเดอร์)</span>
+          <span class="de-pay-amt"  id="de-pay-transfer-amt">฿ 0</span>
+        </div>
+        <div class="de-pay-row">
+          <span class="de-pay-icon">💳</span>
+          <span class="de-pay-lbl">เครดิต</span>
+          <span class="de-pay-count" id="de-pay-credit-count">(0 ออเดอร์)</span>
+          <span class="de-pay-amt"  id="de-pay-credit-amt">฿ 0</span>
+        </div>
+        <hr class="de-pay-divider">
+        <div class="de-pay-row de-pay-total">
+          <span class="de-pay-icon" style="visibility:hidden">x</span>
+          <span class="de-pay-lbl" style="font-family:var(--font-kanit);font-size:1rem">รวม</span>
+          <span class="de-pay-count" id="de-pay-total-count">(0 ออเดอร์)</span>
+          <span class="de-pay-amt"  id="de-pay-total-amt" style="font-family:var(--font-kanit);font-size:1rem">฿ 0</span>
+        </div>
+      </div>
+
+      <!-- Driver cash status -->
+      <div class="de-section-title">เงินสดที่รับจาก Driver แล้ว</div>
+
+      <div class="de-driver-list" id="de-driver-list">
+        <div style="color:var(--text-disabled);padding:8px 0;font-size:0.85rem">กำลังโหลด...</div>
+      </div>
+
+      <!-- Variance alerts (hidden when no issues) -->
+      <div class="de-warn-card" id="de-warn-card" style="display:none">
+        <div class="de-warn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="de-warn-body">
+          <div class="de-warn-title">พบรายการต้องตรวจสอบ</div>
+          <div class="de-warn-sub" id="de-warn-sub"></div>
+        </div>
+        <button class="de-warn-link" onclick="document.getElementById('de-driver-list').scrollIntoView({behavior:'smooth'})">ดูรายละเอียด</button>
+      </div>
+
+      <!-- Expense entry -->
+      <div class="de-exp-hdr">
+        <span class="de-section-title" style="margin-bottom:0">ค่าใช้จ่ายวันนี้</span>
+        <button class="de-exp-add-btn" id="de-exp-add-btn" onclick="deAddExpense()">+ เพิ่ม</button>
+      </div>
+
+      <div id="de-exp-form" class="de-exp-form" style="display:none">
+        <input type="text"   id="de-exp-name-inp" class="form-input" placeholder="ชื่อค่าใช้จ่าย (เช่น ค่าน้ำมัน)" onkeydown="if(event.key==='Enter')document.getElementById('de-exp-amt-inp').focus()">
+        <input type="number" id="de-exp-amt-inp"  class="form-input" placeholder="฿ จำนวน" min="1" onkeydown="if(event.key==='Enter')deExpFormSubmit()">
+        <div class="de-exp-form-actions">
+          <button class="btn btn-ghost btn-sm" onclick="deExpFormCancel()">ยกเลิก</button>
+          <button class="btn btn-primary btn-sm" onclick="deExpFormSubmit()">บันทึก</button>
+        </div>
+      </div>
+
+      <div class="de-exp-list" id="de-exp-list">
+        <div class="de-exp-empty" id="de-exp-empty" style="color:var(--text-disabled);padding:8px 0;font-size:0.85rem">ยังไม่มีค่าใช้จ่าย</div>
+      </div>
+
+      <div style="height:140px"></div>
+
+    </div>
+  </div>
+
+  <div class="de-footer">
+    <button class="de-footer-ghost" onclick="deSendReport()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      ส่งรายงานให้เจ้าของ
+    </button>
+    <button class="de-footer-primary" onclick="confirmDayend()">ปิดกะและ Logout</button>
+    <p class="de-footer-hint">หลังปิดกะ จะแก้ไขออเดอร์วันนี้ไม่ได้ ต้องให้ Admin แก้</p>
+  </div>
+
+</div>
+
+<script src="/static/leaflet.js"></script>
+<script src="/static/pos.js"></script>
+</body>
+</html>

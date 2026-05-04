@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ชัยเพ็ญ 1988 — สั่งแก๊ส</title>
+<script src="/static/js/_theme.js"></script>
+<link rel="stylesheet" href="/static/css/_tokens.css">
+<link rel="stylesheet" href="/static/css/_base.css">
+<link rel="stylesheet" href="/static/order.css">
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-logo">⛽ ชัยเพ็ญ 1988</div>
+  <span class="header-lang" id="btn-change-lang" title="เปลี่ยนภาษา">🌐</span>
+</header>
+
+<!-- Step 0: Language Selector -->
+<div class="step active" id="step-lang">
+  <div class="step-title" data-i18n="choose_lang">เลือกภาษา / Language</div>
+  <div class="lang-grid" id="lang-grid">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+<!-- Step 1: Phone Entry -->
+<div class="step" id="step-phone">
+  <button class="btn-back" onclick="goStep(0)">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title" data-i18n="enter_phone">กรอกเบอร์โทรศัพท์</div>
+  <div class="step-sub" data-i18n="phone_sub">เบอร์ 10 หลัก เพื่อติดตามคำสั่งซื้อ</div>
+  <div class="phone-display" id="phone-display">
+    <span id="phone-digits" style="letter-spacing:.3rem">—</span>
+  </div>
+  <div class="keypad">
+    <div class="key" onclick="numKey('1')"><div class="num">1</div></div>
+    <div class="key" onclick="numKey('2')"><div class="num">2</div><div class="letters">ABC</div></div>
+    <div class="key" onclick="numKey('3')"><div class="num">3</div><div class="letters">DEF</div></div>
+    <div class="key" onclick="numKey('4')"><div class="num">4</div><div class="letters">GHI</div></div>
+    <div class="key" onclick="numKey('5')"><div class="num">5</div><div class="letters">JKL</div></div>
+    <div class="key" onclick="numKey('6')"><div class="num">6</div><div class="letters">MNO</div></div>
+    <div class="key" onclick="numKey('7')"><div class="num">7</div><div class="letters">PQRS</div></div>
+    <div class="key" onclick="numKey('8')"><div class="num">8</div><div class="letters">TUV</div></div>
+    <div class="key" onclick="numKey('9')"><div class="num">9</div><div class="letters">WXYZ</div></div>
+    <div class="key" style="visibility:hidden"></div>
+    <div class="key" onclick="numKey('0')"><div class="num">0</div></div>
+    <div class="key del" onclick="delKey()">⌫</div>
+  </div>
+  <button class="btn-full" id="btn-confirm-phone" disabled onclick="confirmPhone()" data-i18n="confirm">ยืนยัน</button>
+</div>
+
+<!-- Step 1.5: New Customer Registration -->
+<div class="step" id="step-register">
+  <button class="btn-back" onclick="goStep(1)">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title">ลงทะเบียนลูกค้าใหม่</div>
+  <div class="step-sub">เบอร์ <span id="reg-phone"></span></div>
+  <div style="padding:0 16px">
+    <div style="margin-bottom:14px">
+      <label style="font-size:.82rem;color:var(--text-3);display:block;margin-bottom:6px">ชื่อ-นามสกุล *</label>
+      <input id="reg-name" type="text" class="form-input" placeholder="กรอกชื่อ"
+             style="width:100%;padding:12px 14px;background:var(--bg-input);color:var(--text-1);border:1px solid var(--border);border-radius:10px;font-size:1rem;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:.82rem;color:var(--text-3);display:block;margin-bottom:6px">ที่อยู่ (ไม่บังคับ)</label>
+      <textarea id="reg-address" rows="2" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ..."
+             style="width:100%;padding:12px 14px;background:var(--bg-input);color:var(--text-1);border:1px solid var(--border);border-radius:10px;font-size:.95rem;font-family:inherit;resize:none;box-sizing:border-box"></textarea>
+    </div>
+    <div id="reg-error" style="color:var(--accent);font-size:.85rem;min-height:20px;margin-bottom:10px"></div>
+    <button class="btn-full" onclick="registerCustomer()" style="background:var(--accent)">ลงทะเบียน</button>
+  </div>
+</div>
+
+<!-- Step 2: Order Type -->
+<div class="step" id="step-type">
+  <button class="btn-back" onclick="goStep(1)">← <span data-i18n="back">กลับ</span></button>
+  <div class="user-greeting" id="user-greeting"></div>
+  <div class="step-title" data-i18n="choose_type">เลือกประเภทการสั่งซื้อ</div>
+
+  <!-- Repeat banner -->
+  <div class="repeat-banner" id="repeat-banner" onclick="repeatLastOrder()">
+    <div class="repeat-title">⚡ <span data-i18n="repeat_order">สั่งรายการเดิม</span></div>
+    <div class="repeat-items" id="repeat-items-text"></div>
+  </div>
+
+  <div class="type-grid">
+    <div class="type-card" id="card-walkin" onclick="selectType('walkin')">
+      <div class="type-icon">🏪</div>
+      <div class="type-label" data-i18n="walkin">มารับเอง</div>
+      <div class="type-desc" data-i18n="walkin_desc">รับที่ร้าน</div>
+    </div>
+    <div class="type-card" id="card-delivery" onclick="selectType('delivery')">
+      <div class="type-icon">🚚</div>
+      <div class="type-label" data-i18n="delivery">จัดส่ง</div>
+      <div class="type-desc" data-i18n="delivery_desc">ส่งถึงบ้าน</div>
+    </div>
+  </div>
+  <button class="btn-full" id="btn-type-next" disabled onclick="goStep(3)" data-i18n="next">ต่อไป</button>
+</div>
+
+<!-- Step 3: Products -->
+<div class="step" id="step-products">
+  <button class="btn-back" onclick="goStep(2)">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title" data-i18n="choose_products">เลือกสินค้า</div>
+
+  <div class="service-row" id="service-row">
+    <button class="service-btn active" id="svc-exchange" onclick="selectService('exchange')" data-i18n="exchange">เปลี่ยนถัง</button>
+    <button class="service-btn" id="svc-new" onclick="selectService('new')" data-i18n="new_tank">ถังใหม่</button>
+  </div>
+
+  <div id="product-list">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- Cart bar -->
+  <div class="cart-bar" id="cart-bar" style="display:none" onclick="goStep(5)">
+    <span class="cart-bar-txt" id="cart-bar-txt"></span>
+    <span class="cart-bar-total" id="cart-bar-total"></span>
+    <span style="color:#fff;font-size:1.2rem">›</span>
+  </div>
+</div>
+
+<!-- Step 4: Address (delivery only) -->
+<div class="step" id="step-address">
+  <button class="btn-back" onclick="goStep(3)">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title" data-i18n="set_address">ระบุที่อยู่จัดส่ง</div>
+  <div class="step-sub" data-i18n="address_sub">แตะแผนที่เพื่อปักหมุด</div>
+
+  <div id="saved-addresses-list" style="display:none;padding:0 16px 12px"></div>
+
+  <div id="map-container"></div>
+
+  <div class="form-group">
+    <label class="form-label" data-i18n="address_detail">รายละเอียดที่อยู่</label>
+    <textarea class="address-input" id="address-text" rows="3" placeholder="บ้านเลขที่, ซอย, ถนน..."></textarea>
+  </div>
+  <div class="form-group">
+    <label class="form-label" data-i18n="landmark">จุดสังเกต (ไม่บังคับ)</label>
+    <input class="address-input" id="address-note" type="text" placeholder="ใกล้ร้านสะดวกซื้อ, หน้าวัด...">
+  </div>
+  <button class="btn-full" id="btn-address-next" onclick="confirmAddress()" data-i18n="confirm_address">ยืนยันที่อยู่</button>
+</div>
+
+<!-- Step 5: Payment -->
+<div class="step" id="step-payment">
+  <button class="btn-back" id="btn-pay-back" onclick="payBack()">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title" data-i18n="choose_payment">เลือกวิธีชำระเงิน</div>
+  <div id="payment-list">
+    <!-- filled by JS -->
+  </div>
+  <button class="btn-full" id="btn-pay-next" disabled onclick="goStep(6)" data-i18n="next">ต่อไป</button>
+</div>
+
+<!-- Step 6: Review & Submit -->
+<div class="step" id="step-review">
+  <button class="btn-back" onclick="goStep(5)">← <span data-i18n="back">กลับ</span></button>
+  <div class="step-title" data-i18n="review_order">ตรวจสอบคำสั่งซื้อ</div>
+
+  <div class="total-box" id="review-items">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="total-box">
+    <div class="summary-item">
+      <span class="summary-label" data-i18n="subtotal">ยอดสินค้า</span>
+      <span class="summary-val" id="rv-subtotal">฿0</span>
+    </div>
+    <div class="summary-item" id="rv-fee-row" style="display:none">
+      <span class="summary-label" id="rv-fee-label" data-i18n="delivery_fee">ค่าจัดส่ง</span>
+      <span class="summary-val" id="rv-fee">฿0</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label" data-i18n="vat_incl">VAT 7% (รวมแล้ว)</span>
+      <span class="summary-val" id="rv-vat">฿0</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label summary-total" data-i18n="total">รวมทั้งหมด</span>
+      <span class="summary-val summary-total" id="rv-total">฿0</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label" data-i18n="payment_method">ชำระด้วย</span>
+      <span class="summary-val" id="rv-payment">—</span>
+    </div>
+    <div class="summary-item" id="rv-address-row" style="display:none">
+      <span class="summary-label" data-i18n="address">ที่อยู่</span>
+      <span class="summary-val" id="rv-address" style="font-size:.82rem;max-width:60%;text-align:right"></span>
+    </div>
+  </div>
+
+  <button class="btn-full" id="btn-submit" onclick="submitOrder()" data-i18n="submit_order">สั่งซื้อเลย</button>
+</div>
+
+<!-- Step 7: Tracking -->
+<div class="step" id="step-track">
+  <div class="step-title" data-i18n="order_status">สถานะคำสั่งซื้อ</div>
+  <div class="step-sub">
+    <span data-i18n="order_num">เลขที่ออเดอร์</span>: <strong id="track-order-num" style="color:var(--accent)"></strong>
+  </div>
+
+  <div class="track-steps" id="track-steps">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="driver-info" id="driver-info" style="display:none">
+    <div class="section-label" data-i18n="driver">คนส่ง</div>
+    <div class="driver-name" id="driver-name-txt"></div>
+    <div class="info-row" id="driver-vehicle-row" style="display:none">
+      🚛 <span id="driver-vehicle-txt"></span>
+    </div>
+  </div>
+
+  <!-- Warranty box (shown when completed) -->
+  <div class="warranty-box" id="warranty-box" style="display:none">
+    <div class="warranty-title" data-i18n="warranty_title">🛡️ รับประกันการติดตั้ง 7 วัน</div>
+    <div class="warranty-date" id="warranty-date-txt"></div>
+  </div>
+
+  <button class="btn-full secondary" onclick="newOrder()" style="margin-top:24px" data-i18n="new_order">สั่งซื้อใหม่</button>
+</div>
+
+<script src="/static/order.js"></script>
+</body>
+</html>

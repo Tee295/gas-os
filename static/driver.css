@@ -1,0 +1,244 @@
+/* driver.css — layout-specific only; tokens/reset in _tokens.css */
+
+html { scroll-behavior: smooth; }
+body { min-height: 100vh; max-width: 480px; margin: 0 auto; }
+
+/* ── Header ───────────────────────────────────────────── */
+.app-header {
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+  padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 50;
+}
+.header-logo { font-family: 'Kanit', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--accent); flex: 1; }
+.header-driver { font-size: 0.82rem; color: var(--text-3); }
+
+/* ── Login ────────────────────────────────────────────── */
+#login-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 20px;
+}
+.login-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 360px; text-align: center;
+}
+.login-logo { font-family: 'Kanit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.login-sub { font-size: 0.82rem; color: var(--text-3); margin-bottom: 20px; }
+.pin-display {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  font-family: 'Kanit', sans-serif; font-size: 2rem; letter-spacing: .5rem;
+  color: var(--accent); margin-bottom: 14px; min-height: 60px;
+}
+.pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pin-btn {
+  background: var(--bg-high); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-1);
+  font-family: 'Kanit', sans-serif; font-size: 1.2rem; padding: 14px;
+  cursor: pointer; transition: background 0.1s;
+}
+.pin-btn:hover { background: var(--bg-highest); }
+.pin-btn.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pin-btn.del { color: var(--text-3); }
+.login-error { color: var(--accent); font-size: 0.82rem; margin-top: 8px; min-height: 18px; }
+
+/* ── Main App Layout ──────────────────────────────────── */
+#app { display: none; }
+#app.visible { display: block; }
+
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+.page-title {
+  font-family: 'Kanit', sans-serif; font-size: 1.2rem; font-weight: 700;
+  color: var(--text-1); margin-bottom: 16px;
+}
+
+/* ── Bottom Nav ───────────────────────────────────────── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--bg-card); border-top: 1px solid var(--border);
+  display: flex; z-index: 40;
+}
+.nav-btn {
+  flex: 1; padding: 10px 6px; text-align: center;
+  cursor: pointer; font-size: 0.72rem; color: var(--text-3);
+  border: none; background: none; transition: color 0.15s;
+}
+.nav-btn .nav-ico { font-size: 1.3rem; display: block; margin-bottom: 2px; }
+.nav-btn.active { color: var(--accent); }
+.pb-nav { padding-bottom: 72px; }
+
+/* ── Job Cards ────────────────────────────────────────── */
+.job-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+}
+.job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.job-num { font-family: 'Kanit', sans-serif; font-size: 1rem; font-weight: 700; color: var(--accent); }
+.job-status-badge {
+  font-size: 0.72rem; font-weight: 600; border-radius: 4px; padding: 2px 8px;
+}
+.badge-preparing { background: rgba(255,86,37,0.2); color: var(--accent-soft); }
+.badge-delivering { background: rgba(39,166,68,0.2); color: var(--success-dim); }
+
+.job-items { font-size: 0.88rem; color: var(--text-2); margin-bottom: 8px; }
+.job-total {
+  font-family: 'Kanit', sans-serif; font-size: 1.1rem; font-weight: 700;
+  color: var(--accent); margin-bottom: 10px;
+}
+.job-address {
+  font-size: 0.8rem; color: var(--text-3); margin-bottom: 10px;
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.job-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Checklist ────────────────────────────────────────── */
+.checklist { margin: 12px 0; }
+.check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.check-item:last-child { border-bottom: none; }
+.check-box {
+  width: 22px; height: 22px; border: 2px solid var(--border);
+  border-radius: 4px; flex-shrink: 0; display: flex;
+  align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.check-item.checked .check-box {
+  background: var(--success); border-color: var(--success);
+}
+.check-item.checked .check-box::after { content: '✓'; color: #fff; font-size: 0.9rem; }
+.check-label { font-size: 0.9rem; color: var(--text-2); }
+.check-item.checked .check-label { color: var(--success-dim); }
+
+/* ── Cash Summary ─────────────────────────────────────── */
+.cash-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+}
+.cash-row:last-child { border-bottom: none; }
+.cash-label { color: var(--text-2); }
+.cash-val { font-family: 'Kanit', sans-serif; font-weight: 700; color: var(--text-1); }
+.cash-total-row { background: var(--bg-high); border-radius: 8px; padding: 14px; margin-top: 12px; }
+.cash-total-label { font-size: 0.82rem; color: var(--text-3); margin-bottom: 4px; }
+.cash-total-val { font-family: 'Kanit', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+
+/* ── Section Card ─────────────────────────────────────── */
+.section-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Kanit', sans-serif; font-size: 0.9rem; font-weight: 600;
+  color: var(--text-3); margin-bottom: 12px; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn-full {
+  width: 100%; border: none; border-radius: var(--radius);
+  font-family: 'Kanit', sans-serif; font-size: 1rem; font-weight: 600;
+  padding: 14px; cursor: pointer; transition: background 0.15s; margin-top: 8px;
+}
+.btn-full.primary { background: var(--accent); color: #fff; }
+.btn-full.primary:hover { background: #e04a1e; }
+.btn-full.primary:disabled { background: var(--bg-high); color: var(--text-3); cursor: not-allowed; }
+.btn-full.secondary { background: var(--bg-high); border: 1px solid var(--border); color: var(--text-2); }
+.btn-full.secondary:hover { background: var(--bg-highest); }
+.btn-full.success { background: var(--success); color: #fff; }
+.btn-full.success:hover { background: #21943b; }
+.btn-full.warning { background: var(--warning); color: #fff; }
+.btn-full.danger { background: #dc3545; color: #fff; }
+
+.btn-sm {
+  border: none; border-radius: 8px; font-family: 'Sarabun', sans-serif;
+  font-size: 0.82rem; padding: 8px 14px; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-sm.primary { background: var(--accent); color: #fff; }
+.btn-sm.secondary { background: var(--bg-high); border: 1px solid var(--border); color: var(--text-2); }
+.btn-sm.success { background: var(--success); color: #fff; }
+.btn-sm.warning { background: var(--warning); color: #fff; }
+.btn-sm.danger { background: #dc3545; color: #fff; }
+
+/* ── Modal Overlay ────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 100; padding: 16px;
+}
+.modal-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0; padding: 24px; width: 100%; max-width: 480px;
+  max-height: 80vh; overflow-y: auto;
+}
+.modal-title {
+  font-family: 'Kanit', sans-serif; font-size: 1.1rem; font-weight: 600;
+  color: var(--text-1); margin-bottom: 16px;
+}
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+/* ── Info Rows ────────────────────────────────────────── */
+.info-row {
+  display: flex; gap: 8px; align-items: center;
+  font-size: 0.85rem; color: var(--text-2); margin-bottom: 6px;
+}
+
+/* ── Empty State ──────────────────────────────────────── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); }
+.empty-ico { font-size: 3rem; margin-bottom: 12px; }
+.empty-msg { font-size: 0.88rem; }
+
+/* ── Maps link ────────────────────────────────────────── */
+.maps-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--accent); font-size: 0.82rem; text-decoration: none; padding: 6px 0;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ── Toast ────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 20px; font-size: 0.85rem;
+  color: var(--text-1); z-index: 200; white-space: nowrap;
+}
+.toast.success { border-color: var(--success); }
+.toast.error { border-color: var(--accent); }
+
+/* ── Jobs sections (Active / Completed) ─────────────────────────── */
+.jobs-section { margin-bottom: 16px; }
+.jobs-section-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 4px; margin-bottom: 8px;
+  font-family: 'Kanit', sans-serif; font-size: 0.85rem; font-weight: 500;
+  color: var(--text-2); user-select: none;
+}
+.jobs-section-title { flex: 1; }
+.jobs-section-count {
+  background: var(--bg-high); border-radius: 999px;
+  padding: 1px 8px; font-size: 0.72rem; color: var(--text-3);
+}
+.jobs-section-toggle {
+  font-size: 0.9rem; color: var(--text-3); width: 16px; text-align: center;
+}
+
+/* Completed cards: muted appearance */
+.job-completed { opacity: 0.85; }
+.job-completed .job-num { color: var(--text-2); }
+.badge-completed { background: rgba(29,140,61,0.15); color: var(--success); }
+
+/* Compact (collapsed) view */
+.job-compact {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; font-size: 0.82rem;
+}
+.job-compact-items { color: var(--text-3); flex: 1; }
+.job-compact-total { font-family: 'Kanit', sans-serif; font-weight: 600; color: var(--text-2); }
+.job-expand-icon { color: var(--text-3); font-size: 0.78rem; margin-left: 4px; }
