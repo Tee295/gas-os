@@ -1,5 +1,5 @@
-/* sw.js — Service Worker for Driver PWA */
-const CACHE = 'gas-driver-v1';
+/* sw.js — Service Worker for Driver PWA — network-first */
+const CACHE = 'gas-driver-v2';
 const STATIC_ASSETS = [
   '/driver',
   '/static/driver.css',
@@ -15,7 +15,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches + take control immediately
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -25,37 +25,25 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API calls, cache-first for static
+// Fetch: NETWORK-FIRST for everything — cache only as offline fallback
+// Previously was cache-first which served stale code after deploys
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+  // Don't intercept POST/PUT/DELETE
+  if (event.request.method !== 'GET') return;
 
-  // Network-first for driver API calls
-  if (url.pathname.startsWith('/driver/orders') || url.pathname.startsWith('/driver/cash')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(res => res)
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Cache-first for static files
-  if (STATIC_ASSETS.some(a => url.pathname === a || url.pathname.startsWith('/static/'))) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(cache => cache.put(event.request, clone));
-          }
-          return res;
-        });
+  event.respondWith(
+    fetch(event.request)
+      .then(res => {
+        // Update cache in background for static assets
+        if (res.ok && event.request.url.includes('/static/')) {
+          const clone = res.clone();
+          caches.open(CACHE).then(cache => cache.put(event.request, clone)).catch(() => {});
+        }
+        return res;
       })
-    );
-    return;
-  }
-
-  // Default: network
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+      .catch(() => {
+        // Network failed (offline) — try cache as fallback
+        return caches.match(event.request);
+      })
+  );
 });
