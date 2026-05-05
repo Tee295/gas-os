@@ -350,31 +350,60 @@ async function loadCash() {
 function renderCash(data) {
   const orders = data.orders || [];
   const total = data.total_cash || 0;
+  const totalCollected = data.total_collected_today || 0;
+  const allCleared = orders.length > 0 && orders.every(o => o.cleared || o.payment_method !== 'เงินสด');
 
   let html = '<div class="section-card"><div class="section-title">รายการวันนี้</div>';
   if (!orders.length) {
     html += '<p style="color:var(--text-3);font-size:.85rem">ยังไม่มีรายการ</p>';
   } else {
     orders.forEach(o => {
+      const isCash = o.payment_method === 'เงินสด';
+      const cleared = o.cleared && isCash;
+      const statusBadge = !isCash
+        ? '<span style="font-size:.7rem;color:var(--text-3);margin-left:6px">(' + htmlEsc(o.payment_method || '') + ')</span>'
+        : (cleared
+            ? '<span style="font-size:.7rem;color:var(--success);margin-left:6px">✓ ส่งเงินแล้ว</span>'
+            : '<span style="font-size:.7rem;color:var(--warning);margin-left:6px">รอส่ง</span>');
+      const valStyle = cleared ? 'opacity:0.5;text-decoration:line-through' : '';
       html += '<div class="cash-row">'
-        + '<div class="cash-label">' + htmlEsc(o.order_num) + '<br><span style="font-size:.75rem;color:var(--text-3)">' + htmlEsc(o.customer_name || '') + '</span></div>'
-        + '<div class="cash-val">฿' + fmt(o.cash_received) + '</div>'
+        + '<div class="cash-label">' + htmlEsc(o.order_num) + statusBadge
+        + '<br><span style="font-size:.75rem;color:var(--text-3)">' + htmlEsc(o.customer_name || '') + '</span></div>'
+        + '<div class="cash-val" style="' + valStyle + '">฿' + fmt(o.cash_received) + '</div>'
         + '</div>';
     });
   }
   html += '</div>';
 
   html += '<div class="cash-total-row">'
-    + '<div class="cash-total-label">ยอดรวมที่ต้องส่งคืน</div>'
-    + '<div class="cash-total-val">฿' + fmt(total) + '</div>'
+    + '<div class="cash-total-label">' + (allCleared ? 'ส่งคืนครบแล้ว — รวมวันนี้' : 'ยอดรวมที่ต้องส่งคืน') + '</div>'
+    + '<div class="cash-total-val" style="' + (allCleared ? 'color:var(--success)' : '') + '">฿' + fmt(allCleared ? totalCollected : total) + '</div>'
     + '</div>';
 
   document.getElementById('cash-content').innerHTML = html;
   document.getElementById('return-amount-txt').textContent = '฿' + fmt(total);
+
+  // Disable return button if nothing to return
+  const returnBtn = document.getElementById('btn-cash-return');
+  if (returnBtn) {
+    if (total <= 0) {
+      returnBtn.disabled = true;
+      returnBtn.textContent = orders.length ? 'ส่งคืนครบแล้ว' : 'ยังไม่มีเงินรอส่งคืน';
+      returnBtn.style.opacity = '0.5';
+    } else {
+      returnBtn.disabled = false;
+      returnBtn.textContent = 'ส่งคืนเงินสด ฿' + fmt(total);
+      returnBtn.style.opacity = '1';
+    }
+  }
 }
 
 function showCashReturn() {
   const total = (D.cashSummary && D.cashSummary.total_cash) || 0;
+  if (total <= 0) {
+    showToast('ไม่มีเงินค้างที่ต้องส่งคืน', 'success');
+    return;
+  }
   document.getElementById('return-amount-txt').textContent = '฿' + fmt(total);
   document.getElementById('modal-cash-return').style.display = 'flex';
 }
@@ -386,10 +415,16 @@ async function confirmCashReturn() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
+      body: JSON.stringify({}),
     });
     const data = await res.json();
     if (res.ok) {
-      showToast('ส่งคืนเงินสดแล้ว ฿' + fmt(data.returned || 0), 'success');
+      const amt = data.returned || 0;
+      if (amt > 0) {
+        showToast('ส่งคืนเงินสดแล้ว ฿' + fmt(amt), 'success');
+      } else {
+        showToast('หัวหน้างานได้รับเงินแล้ว', 'success');
+      }
       loadCash();
     } else {
       showToast(data.error || 'เกิดข้อผิดพลาด', 'error');

@@ -219,7 +219,7 @@ async function loadConfig() {
 
 async function loadLanguages() {
   try {
-    const res = await fetch('/customer/settings');
+    const res = await fetch('/api/customer/settings', { credentials: 'same-origin' });
     const data = await res.json();
     // Use hardcoded lang list but filter by what server says is active if available
     S.availLangs = Object.keys(LANG_META);
