@@ -36,6 +36,22 @@ def _cookie_name_for(role):
     return COOKIE_NAMES_BY_ROLE.get(role, COOKIE_NAME)
 
 
+def _set_session_cookie(response, role, token):
+    """Set session cookie with auto-detected Secure flag for HTTPS."""
+    # Check if request came over HTTPS
+    is_https = request.is_secure or \
+               request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
+    response.set_cookie(
+        _cookie_name_for(role),
+        token,
+        httponly=True,
+        samesite='Lax',
+        secure=is_https,        # Required by modern browsers on HTTPS
+        max_age=86400 * 7,
+        path='/'
+    )
+
+
 def _is_locked(staff_id: str):
     """Returns (locked: bool, seconds_remaining: int)."""
     entry = _lockout.get(str(staff_id))
@@ -110,8 +126,7 @@ def login():
             'staff': {'id': staff['id'], 'name': staff['name'], 'role': staff['role']}
         }))
         # Per-role cookie: avoids conflict if user has multiple roles in same browser
-        response.set_cookie(_cookie_name_for(staff['role']), token, httponly=True,
-                            samesite='Lax', max_age=86400 * 7, path='/')
+        _set_session_cookie(response, staff['role'], token)
         return response
 
     # ── Supervisor / Driver login: staff_id + PIN ────────────────────────────
@@ -147,8 +162,7 @@ def login():
         'staff': {'id': staff['id'], 'name': staff['name'], 'role': staff['role']}
     }))
     # Per-role cookie: avoids conflict if user has multiple roles in same browser
-    response.set_cookie(_cookie_name_for(staff['role']), token, httponly=True,
-                        samesite='Lax', max_age=86400 * 7, path='/')
+    _set_session_cookie(response, staff['role'], token)
     return response
 
 

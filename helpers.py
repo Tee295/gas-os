@@ -170,31 +170,70 @@ def _sign(payload_str: str) -> str:
 
 
 def make_session_token(staff_dict: dict) -> str:
-    """Sign a minimal staff payload as a cookie value."""
+    """Sign a minimal staff payload as a cookie value.
+    
+    Uses base64-encoded payload to avoid encoding issues with Thai characters
+    or special chars in staff names that can break cookie round-trip.
+    """
+    import base64
     payload = json.dumps({
         'id':   staff_dict['id'],
         'name': staff_dict['name'],
         'role': staff_dict['role'],
-    }, ensure_ascii=False, separators=(',', ':'))
-    return payload + '.' + _sign(payload)
+    }, separators=(',', ':'))
+    payload_b64 = base64.urlsafe_b64encode(payload.encode('utf-8')).decode('ascii').rstrip('=')
+    return payload_b64 + '.' + _sign(payload_b64)
 
 
 def verify_session_token(token: str):
     """Returns decoded dict or None if invalid/tampered."""
+    import base64
     if not token or '.' not in token:
         return None
     try:
-        # split on last dot
-        dot = token.rfind('.')
-        payload, sig = token[:dot], token[dot + 1:]
-        if not hmac.compare_digest(sig, _sign(payload)):
+        payload_b64, sig = token.rsplit('.', 1)
+        if not hmac.compare_digest(sig, _sign(payload_b64)):
             return None
+        # Add base64 padding back
+        payload_b64 += '=' * (-len(payload_b64) % 4)
+        payload = base64.urlsafe_b64decode(payload_b64).decode('utf-8')
         return json.loads(payload)
     except Exception:
         return None
 
 
 # ─── require_auth decorator ───────────────────────────────────────────────────
+
+# Per-role cookie names — must match auth.py
+_COOKIE_NAMES_BY_ROLE = {
+    'admin':      'gas_session_admin',
+    'supervisor': 'gas_session_supervisor',
+    'driver':     'gas_session_driver',
+}
+_LEGACY_COOKIE = 'gas_session'
+
+
+def _get_session_data(roles=None):
+    """Look up session in role-specific cookies first, fall back to legacy."""
+    # If roles specified, try those role cookies first (most likely match)
+    if roles:
+        for r in roles:
+            cookie_name = _COOKIE_NAMES_BY_ROLE.get(r)
+            if cookie_name:
+                token = request.cookies.get(cookie_name)
+                if token:
+                    data = verify_session_token(token)
+                    if data:
+                        return data
+    # Fall back: try all role cookies + legacy
+    for cookie_name in [*_COOKIE_NAMES_BY_ROLE.values(), _LEGACY_COOKIE]:
+        token = request.cookies.get(cookie_name)
+        if token:
+            data = verify_session_token(token)
+            if data:
+                return data
+    return None
+
 
 def require_auth(roles=None):
     """
@@ -205,8 +244,7 @@ def require_auth(roles=None):
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            token = request.cookies.get('gas_session')
-            data  = verify_session_token(token)
+            data = _get_session_data(roles)
             if not data:
                 return jsonify({'error': 'Unauthorized'}), 401
             if roles and data['role'] not in roles:
