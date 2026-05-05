@@ -423,32 +423,75 @@ function selectService(svc) {
 // ─── Products ─────────────────────────────────────────────────────────────────
 function renderProducts() {
   const list = document.getElementById('product-list');
-  // Backend returns status='available' for in-stock items
   const avail = S.products.filter(p => p.status === 'available' || p.status === 'active');
   if (!avail.length) {
     list.innerHTML = '<p style="color:var(--text-3);text-align:center;padding:40px 0">ไม่มีสินค้า</p>';
     return;
   }
-  list.innerHTML = avail.map(p => {
+  list.innerHTML = '';
+  avail.forEach(p => {
     const inCart = S.cart.find(c => c.product_id === p.id);
     const qty = inCart ? inCart.qty : 0;
     const isOut = p.full_qty <= 0;
-    const idEsc = String(p.id).replace(/'/g, "\\'");
-    return '<div class="product-item' + (isOut ? ' out' : '') + '">'
-      + '<div class="prod-ico">' + (p.ico || p.icon || '🔴') + '</div>'
-      + '<div class="prod-info">'
-      + '<div class="prod-name">' + htmlEsc(p.name) + '</div>'
-      + '<div class="prod-brand">' + htmlEsc(p.brand || '') + '</div>'
-      + '<div class="prod-price">฿' + fmt(p.price) + '</div>'
-      + '<div class="prod-stock">' + t('in_stock') + ': ' + p.full_qty + '</div>'
-      + '</div>'
-      + '<div class="qty-ctrl">'
-      + "<button class=\"qty-btn\" onclick=\"changeQty('" + idEsc + "',-1)\" " + (qty === 0 ? 'disabled' : '') + '>−</button>'
-      + '<div class="qty-num">' + qty + '</div>'
-      + "<button class=\"qty-btn\" onclick=\"changeQty('" + idEsc + "',1)\" " + (isOut ? 'disabled' : '') + '>+</button>'
-      + '</div>'
-      + '</div>';
-  }).join('');
+
+    const item = document.createElement('div');
+    item.className = 'product-item' + (isOut ? ' out' : '');
+
+    const ico = document.createElement('div');
+    ico.className = 'prod-ico';
+    ico.textContent = p.ico || p.icon || '🔴';
+    item.appendChild(ico);
+
+    const info = document.createElement('div');
+    info.className = 'prod-info';
+
+    const nm = document.createElement('div');
+    nm.className = 'prod-name';
+    nm.textContent = p.name || '';
+    info.appendChild(nm);
+
+    const br = document.createElement('div');
+    br.className = 'prod-brand';
+    br.textContent = p.brand || '';
+    info.appendChild(br);
+
+    const pr = document.createElement('div');
+    pr.className = 'prod-price';
+    pr.textContent = '฿' + fmt(p.price);
+    info.appendChild(pr);
+
+    const stk = document.createElement('div');
+    stk.className = 'prod-stock';
+    stk.textContent = t('in_stock') + ': ' + p.full_qty;
+    info.appendChild(stk);
+
+    item.appendChild(info);
+
+    const ctrl = document.createElement('div');
+    ctrl.className = 'qty-ctrl';
+
+    const minus = document.createElement('button');
+    minus.className = 'qty-btn';
+    minus.textContent = '−';
+    minus.disabled = (qty === 0);
+    minus.onclick = () => changeQty(p.id, -1);
+    ctrl.appendChild(minus);
+
+    const num = document.createElement('div');
+    num.className = 'qty-num';
+    num.textContent = String(qty);
+    ctrl.appendChild(num);
+
+    const plus = document.createElement('button');
+    plus.className = 'qty-btn';
+    plus.textContent = '+';
+    plus.disabled = isOut;
+    plus.onclick = () => changeQty(p.id, 1);
+    ctrl.appendChild(plus);
+
+    item.appendChild(ctrl);
+    list.appendChild(item);
+  });
   updateCartBar();
 }
 
@@ -579,16 +622,30 @@ function renderPayments() {
     if (m.require_tier === 'b2b' && (!S.customer || S.customer.tier !== 'b2b')) return false;
     return true;
   });
-  list.innerHTML = methods.map(m => {
-    const idEsc = String(m.id).replace(/'/g, "\\'");
-    const nameEsc = String(m.name || '').replace(/'/g, "\\'");
-    return '<div class="pm-item' + (S.selectedPayment === m.id ? ' active' : '')
-      + "\" onclick=\"selectPayment('" + idEsc + "','" + nameEsc + "')\">"
-      + '<div class="pm-icon">' + (m.icon || '💳') + '</div>'
-      + '<div><div class="pm-name">' + htmlEsc(m.name) + '</div>'
-      + '<div class="pm-desc">' + htmlEsc(m.description || '') + '</div></div>'
-      + '</div>';
-  }).join('');
+  list.innerHTML = '';
+  methods.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'pm-item' + (S.selectedPayment === m.id ? ' active' : '');
+    div.onclick = () => selectPayment(m.id, m.name);
+
+    const icon = document.createElement('div');
+    icon.className = 'pm-icon';
+    icon.textContent = m.icon || '💳';
+    div.appendChild(icon);
+
+    const info = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'pm-name';
+    name.textContent = m.name || '';
+    info.appendChild(name);
+    const desc = document.createElement('div');
+    desc.className = 'pm-desc';
+    desc.textContent = m.description || '';
+    info.appendChild(desc);
+    div.appendChild(info);
+
+    list.appendChild(div);
+  });
   document.getElementById('btn-pay-next').disabled = !S.selectedPayment;
 }
 
