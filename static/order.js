@@ -579,13 +579,16 @@ function renderPayments() {
     if (m.require_tier === 'b2b' && (!S.customer || S.customer.tier !== 'b2b')) return false;
     return true;
   });
-  list.innerHTML = methods.map(m =>
-    '<div class="pm-item' + (S.selectedPayment === m.id ? ' active' : '') + '" onclick="selectPayment(' + m.id + ',\'' + htmlEsc(m.name) + '\')">'
-    + '<div class="pm-icon">' + (m.icon || '💳') + '</div>'
-    + '<div><div class="pm-name">' + htmlEsc(m.name) + '</div>'
-    + '<div class="pm-desc">' + htmlEsc(m.description || '') + '</div></div>'
-    + '</div>'
-  ).join('');
+  list.innerHTML = methods.map(m => {
+    const idEsc = String(m.id).replace(/'/g, "\\'");
+    const nameEsc = String(m.name || '').replace(/'/g, "\\'");
+    return '<div class="pm-item' + (S.selectedPayment === m.id ? ' active' : '')
+      + "\" onclick=\"selectPayment('" + idEsc + "','" + nameEsc + "')\">"
+      + '<div class="pm-icon">' + (m.icon || '💳') + '</div>'
+      + '<div><div class="pm-name">' + htmlEsc(m.name) + '</div>'
+      + '<div class="pm-desc">' + htmlEsc(m.description || '') + '</div></div>'
+      + '</div>';
+  }).join('');
   document.getElementById('btn-pay-next').disabled = !S.selectedPayment;
 }
 
