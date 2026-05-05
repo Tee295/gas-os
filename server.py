@@ -34,6 +34,9 @@ def load_settings():
 # ─── Database Init ───────────────────────────────────────────────────────────
 
 def init_db():
+    db_path = os.getenv('DATABASE_PATH', 'gasshop.db')
+    print(f"[INFO] Database path: {db_path}", flush=True)
+    print(f"[INFO] Database parent exists: {os.path.exists(os.path.dirname(db_path) or '.')}", flush=True)
     conn = get_db()
     _create_tables(conn)
     _migrate(conn)
@@ -41,6 +44,7 @@ def init_db():
     conn.close()
     _seed_defaults()
     load_settings()
+    print(f"[INFO] Database initialized successfully at {db_path}", flush=True)
 
 
 def _create_tables(conn):
@@ -595,6 +599,29 @@ def _seed_defaults():
                (id,name,phone,role,pin,vehicle,active,created_at)
                VALUES (?,?,?,?,?,?,?,?)""",
             (new_id(), 'Admin', '', 'admin', '198800', 'none', 1, bkk_now())
+        )
+
+    # Seed default supervisor + driver too (for fresh production deploy)
+    has_supervisor = conn.execute(
+        "SELECT COUNT(*) FROM staff WHERE role='supervisor'"
+    ).fetchone()[0]
+    if not has_supervisor:
+        conn.execute(
+            """INSERT INTO staff
+               (id,name,phone,role,pin,vehicle,active,created_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (new_id(), 'หัวหน้างาน', '', 'supervisor', '1111', 'none', 1, bkk_now())
+        )
+
+    has_driver = conn.execute(
+        "SELECT COUNT(*) FROM staff WHERE role='driver'"
+    ).fetchone()[0]
+    if not has_driver:
+        conn.execute(
+            """INSERT INTO staff
+               (id,name,phone,role,pin,vehicle,active,created_at)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (new_id(), 'พนักงานส่ง', '', 'driver', '2222', 'มอเตอร์ไซค์', 1, bkk_now())
         )
 
     # Seed tare bonus rule if none exists

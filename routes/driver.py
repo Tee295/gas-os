@@ -27,12 +27,10 @@ def get_orders():
                   address,lat,lng,items_json,items_summary,
                   total,payment_method,awaiting_payment,
                   service_type,order_type,status,
-                  cash_collected,note,
-                  created_at, delivered_at,
-                  COALESCE(cash_cleared, 0) as cash_cleared
+                  cash_collected,note
            FROM orders
            WHERE driver_id=? AND date=? AND status NOT IN ('cancelled')
-           ORDER BY created_at DESC""",
+           ORDER BY created_at""",
         (staff['id'], today)
     ).fetchall()
     db.close()
@@ -43,12 +41,7 @@ def get_orders():
             o['items'] = json.loads(o.pop('items_json') or '[]')
         except Exception:
             o['items'] = []
-        # Alias field names to match driver.js frontend expectations
-        o['customer_name']     = o.get('cust_name', '')
-        o['customer_phone']    = o.get('cust_phone', '')
-        o['delivery_address']  = o.get('address', '')
-        o['delivery_lat']      = o.get('lat', None)
-        o['delivery_lng']      = o.get('lng', None)
+        # Never expose driver phone — only customer name
         result.append(o)
     return jsonify({'orders': result})
 
@@ -57,7 +50,7 @@ def get_orders():
 @require_auth(DRIVER_ROLES)
 def pickup_order(order_num):
     staff = g.actor
-    d     = request.get_json(silent=True) or {}
+    d     = request.get_json() or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -85,7 +78,7 @@ def pickup_order(order_num):
 @require_auth(DRIVER_ROLES)
 def deliver_order(order_num):
     staff = g.actor
-    d     = request.get_json(silent=True) or {}
+    d     = request.get_json() or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -145,7 +138,7 @@ def deliver_order(order_num):
 @require_auth(DRIVER_ROLES)
 def customer_absent(order_num):
     staff = g.actor
-    d     = request.get_json(silent=True) or {}
+    d     = request.get_json() or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -180,36 +173,20 @@ def cash_summary():
     db    = get_db()
     today = bkk_now()[:10]
     orders = db.execute(
-        """SELECT order_num, cust_name, cash_collected, payment_method,
-                  COALESCE(cash_cleared, 0) as cash_cleared
+        """SELECT order_num, cust_name, cash_collected, payment_method
            FROM orders
            WHERE driver_id=? AND date=? AND status='completed'
            ORDER BY delivered_at""",
         (staff['id'], today)
     ).fetchall()
-    # total_cash = uncleared cash only (what driver still owes)
     total_cash = sum(
-        o['cash_collected'] for o in orders
-        if o['payment_method'] == 'เงินสด' and not o['cash_cleared']
-    )
-    # total_collected_today = all cash this driver collected (for display)
-    total_collected_today = sum(
         o['cash_collected'] for o in orders
         if o['payment_method'] == 'เงินสด'
     )
     db.close()
-    # Alias field names to match driver.js frontend expectations
-    result_orders = []
-    for o in orders:
-        d = dict(o)
-        d['customer_name'] = d.get('cust_name', '')
-        d['cash_received'] = d.get('cash_collected', 0)
-        d['cleared']       = bool(d.get('cash_cleared', 0))
-        result_orders.append(d)
     return jsonify({
-        'orders': result_orders,
-        'total_cash': total_cash,                # what driver still owes
-        'total_collected_today': total_collected_today,
+        'orders': [dict(o) for o in orders],
+        'total_cash': total_cash,
         'driver': staff['name'],
     })
 
@@ -218,7 +195,7 @@ def cash_summary():
 @require_auth(DRIVER_ROLES)
 def return_cash():
     staff = g.actor
-    d     = request.get_json(silent=True) or {}
+    d     = request.get_json() or {}
     db    = get_db()
     today = bkk_now()[:10]
     # Sum uncleared cash

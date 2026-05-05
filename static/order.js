@@ -202,9 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadConfig() {
   try {
     const [prodRes, feeRes, pmRes] = await Promise.all([
-      fetch('/api/customer/products', { credentials: 'same-origin' }),
-      fetch('/api/customer/fees', { credentials: 'same-origin' }),
-      fetch('/api/customer/payment-methods', { credentials: 'same-origin' }),
+      fetch('/api/customer/products'),
+      fetch('/api/customer/fees'),
+      fetch('/api/customer/payment-methods'),
     ]);
     S.products = await prodRes.json();
     if (!Array.isArray(S.products)) S.products = [];
@@ -313,7 +313,6 @@ async function confirmPhone() {
   if (S.phone.length !== 10) return;
   try {
     const res  = await fetch('/api/customer/identify', {
-      credentials: 'same-origin',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: S.phone }),
@@ -352,7 +351,6 @@ async function registerCustomer() {
 
   try {
     const res  = await fetch('/api/customer/register', {
-      credentials: 'same-origin',
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: S.phone, name, address }),
@@ -668,7 +666,6 @@ async function submitOrder() {
 
   try {
     const res = await fetch('/api/customer/order', {
-      credentials: 'same-origin',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

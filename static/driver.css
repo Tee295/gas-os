@@ -211,34 +211,3 @@ body { min-height: 100vh; max-width: 480px; margin: 0 auto; }
 }
 .toast.success { border-color: var(--success); }
 .toast.error { border-color: var(--accent); }
-
-/* ── Jobs sections (Active / Completed) ─────────────────────────── */
-.jobs-section { margin-bottom: 16px; }
-.jobs-section-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 4px; margin-bottom: 8px;
-  font-family: 'Kanit', sans-serif; font-size: 0.85rem; font-weight: 500;
-  color: var(--text-2); user-select: none;
-}
-.jobs-section-title { flex: 1; }
-.jobs-section-count {
-  background: var(--bg-high); border-radius: 999px;
-  padding: 1px 8px; font-size: 0.72rem; color: var(--text-3);
-}
-.jobs-section-toggle {
-  font-size: 0.9rem; color: var(--text-3); width: 16px; text-align: center;
-}
-
-/* Completed cards: muted appearance */
-.job-completed { opacity: 0.85; }
-.job-completed .job-num { color: var(--text-2); }
-.badge-completed { background: rgba(29,140,61,0.15); color: var(--success); }
-
-/* Compact (collapsed) view */
-.job-compact {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 0; font-size: 0.82rem;
-}
-.job-compact-items { color: var(--text-3); flex: 1; }
-.job-compact-total { font-family: 'Kanit', sans-serif; font-weight: 600; color: var(--text-2); }
-.job-expand-icon { color: var(--text-3); font-size: 0.78rem; margin-left: 4px; }

@@ -11,7 +11,6 @@ import hashlib
 import logging
 from datetime import datetime, timezone, timedelta
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple
 
 from flask import request, jsonify, g
 
@@ -22,7 +21,16 @@ BKK      = timezone(timedelta(hours=7))
 
 # ─── DB ──────────────────────────────────────────────────────────────────────
 
-def get_db() -> sqlite3.Connection:
+def get_db():
+    # Ensure parent directory exists (e.g. /data on Railway volume)
+    db_dir = os.path.dirname(DATABASE)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except OSError as e:
+            # Fallback: use current dir if volume not writable
+            print(f"[WARN] Cannot create {db_dir}: {e}. Using current dir.")
+            globals()['DATABASE'] = 'gasshop.db'
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
@@ -32,23 +40,23 @@ def get_db() -> sqlite3.Connection:
 
 # ─── Time ─────────────────────────────────────────────────────────────────────
 
-def bkk_now() -> str:
+def bkk_now():
     return datetime.now(BKK).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def bkk_today() -> str:
+def bkk_today():
     return datetime.now(BKK).strftime('%Y-%m-%d')
 
 
 # ─── IDs ─────────────────────────────────────────────────────────────────────
 
-def new_id() -> str:
+def new_id():
     return str(uuid.uuid4())[:8]
 
 
 # ─── Finance ─────────────────────────────────────────────────────────────────
 
-def calc_vat(total_incl_vat: float, rate: int = 7) -> Tuple[float, float]:
+def calc_vat(total_incl_vat, rate=7):
     """Extract VAT from VAT-inclusive price. Returns (base, vat)."""
     vat  = round(total_incl_vat * rate / (100 + rate), 2)
     base = round(total_incl_vat - vat, 2)
@@ -57,7 +65,7 @@ def calc_vat(total_incl_vat: float, rate: int = 7) -> Tuple[float, float]:
 
 # ─── Order Number ─────────────────────────────────────────────────────────────
 
-def generate_order_num(conn: sqlite3.Connection) -> str:
+def generate_order_num(conn):
     """Format: YYMMDD-SEQ e.g. 260410-001 — resets daily, atomic within conn."""
     today = datetime.now(BKK).strftime('%y%m%d')
     row = conn.execute(
@@ -77,7 +85,7 @@ def generate_order_num(conn: sqlite3.Connection) -> str:
 
 # ─── Document Number ─────────────────────────────────────────────────────────
 
-def generate_doc_num(conn: sqlite3.Connection, doc_type: str = 'dn') -> str:
+def generate_doc_num(conn, doc_type='dn'):
     """
     Generate delivery note (DN-YYMMDD-001) or tax invoice (INV-YYMMDD-001).
     Resets daily. Atomic within the calling connection.
@@ -98,10 +106,8 @@ def generate_doc_num(conn: sqlite3.Connection, doc_type: str = 'dn') -> str:
 
 # ─── Audit ────────────────────────────────────────────────────────────────────
 
-def audit(conn: sqlite3.Connection, actor_id: str, actor_name: str, actor_role: str, 
-          action: str, target_type: str = '', target_id: str = '', 
-          detail: Optional[Dict[str, Any]] = None, lat: Optional[float] = None, 
-          lng: Optional[float] = None) -> None:
+def audit(conn, actor_id, actor_name, actor_role, action,
+          target_type='', target_id='', detail=None, lat=None, lng=None):
     conn.execute(
         """INSERT INTO audit_log
            (id, timestamp, actor_id, actor_name, actor_role,
@@ -116,7 +122,7 @@ def audit(conn: sqlite3.Connection, actor_id: str, actor_name: str, actor_role: 
 
 # ─── Stock Invariant ──────────────────────────────────────────────────────────
 
-def verify_stock_invariant(conn: sqlite3.Connection, product_id: str) -> None:
+def verify_stock_invariant(conn, product_id):
     """Log a warning if full+empty+customer is inconsistent (for monitoring)."""
     row = conn.execute(
         "SELECT full_qty, empty_qty, customer_qty FROM tank_stock WHERE product_id=?",
@@ -133,7 +139,7 @@ def verify_stock_invariant(conn: sqlite3.Connection, product_id: str) -> None:
 
 # ─── LINE Notify ──────────────────────────────────────────────────────────────
 
-def notify_line(message: str, token: Optional[str] = None) -> None:
+def notify_line(message, token=None):
     """Send LINE Notify. Uses token arg or fetches from settings table."""
     if not token:
         try:
@@ -163,34 +169,26 @@ def _sign(payload_str: str) -> str:
     return hmac.new(SECRET.encode(), payload_str.encode(), hashlib.sha256).hexdigest()
 
 
-def make_session_token(staff_dict: Dict[str, str]) -> str:
-    """Sign a minimal staff payload as a cookie value.
-    
-    Uses base64-encoded payload to avoid encoding issues with Thai characters
-    or special chars in staff names that can break cookie round-trip.
-    """
-    import base64
+def make_session_token(staff_dict: dict) -> str:
+    """Sign a minimal staff payload as a cookie value."""
     payload = json.dumps({
         'id':   staff_dict['id'],
         'name': staff_dict['name'],
         'role': staff_dict['role'],
-    }, separators=(',', ':'))
-    payload_b64 = base64.urlsafe_b64encode(payload.encode('utf-8')).decode('ascii').rstrip('=')
-    return payload_b64 + '.' + _sign(payload_b64)
+    }, ensure_ascii=False, separators=(',', ':'))
+    return payload + '.' + _sign(payload)
 
 
-def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
+def verify_session_token(token: str):
     """Returns decoded dict or None if invalid/tampered."""
-    import base64
     if not token or '.' not in token:
         return None
     try:
-        payload_b64, sig = token.rsplit('.', 1)
-        if not hmac.compare_digest(sig, _sign(payload_b64)):
+        # split on last dot
+        dot = token.rfind('.')
+        payload, sig = token[:dot], token[dot + 1:]
+        if not hmac.compare_digest(sig, _sign(payload)):
             return None
-        # Add base64 padding back
-        payload_b64 += '=' * (-len(payload_b64) % 4)
-        payload = base64.urlsafe_b64decode(payload_b64).decode('utf-8')
         return json.loads(payload)
     except Exception:
         return None
@@ -198,47 +196,17 @@ def verify_session_token(token: str) -> Optional[Dict[str, Any]]:
 
 # ─── require_auth decorator ───────────────────────────────────────────────────
 
-# Per-role cookie names — must match auth.py
-_COOKIE_NAMES_BY_ROLE: Dict[str, str] = {
-    'admin':      'gas_session_admin',
-    'supervisor': 'gas_session_supervisor',
-    'driver':     'gas_session_driver',
-}
-_LEGACY_COOKIE = 'gas_session'
-
-
-def _get_session_data(roles: Optional[list] = None) -> Optional[Dict[str, Any]]:
-    """Look up session in role-specific cookies first, fall back to legacy."""
-    # If roles specified, try those role cookies first (most likely match)
-    if roles:
-        for r in roles:
-            cookie_name = _COOKIE_NAMES_BY_ROLE.get(r)
-            if cookie_name:
-                token = request.cookies.get(cookie_name)
-                if token:
-                    data = verify_session_token(token)
-                    if data:
-                        return data
-    # Fall back: try all role cookies + legacy
-    for cookie_name in [*_COOKIE_NAMES_BY_ROLE.values(), _LEGACY_COOKIE]:
-        token = request.cookies.get(cookie_name)
-        if token:
-            data = verify_session_token(token)
-            if data:
-                return data
-    return None
-
-
-def require_auth(roles: Optional[list] = None) -> Callable:
+def require_auth(roles=None):
     """
     @require_auth()                  — any authenticated staff
     @require_auth(['supervisor','admin'])  — specific roles only
     Sets g.actor = {id, name, role}
     """
-    def decorator(f: Callable) -> Callable:
+    def decorator(f):
         @wraps(f)
-        def wrapped(*args: Any, **kwargs: Any) -> Any:
-            data = _get_session_data(roles)
+        def wrapped(*args, **kwargs):
+            token = request.cookies.get('gas_session')
+            data  = verify_session_token(token)
             if not data:
                 return jsonify({'error': 'Unauthorized'}), 401
             if roles and data['role'] not in roles:
@@ -251,9 +219,9 @@ def require_auth(roles: Optional[list] = None) -> Callable:
 
 # ─── Legacy: require_shop_key (kept for backwards compat on admin API calls) ──
 
-def require_shop_key(f: Callable) -> Callable:
+def require_shop_key(f):
     @wraps(f)
-    def decorated(*args: Any, **kwargs: Any) -> Any:
+    def decorated(*args, **kwargs):
         key = (request.headers.get('X-Shop-Key') or
                (request.get_json(silent=True) or {}).get('shop_key', ''))
         db  = get_db()
@@ -267,7 +235,7 @@ def require_shop_key(f: Callable) -> Callable:
 
 # ─── PIN verification (used by auth route only) ───────────────────────────────
 
-def verify_pin(pin: str, roles: Optional[list] = None) -> Optional[Dict[str, Any]]:
+def verify_pin(pin, roles=None):
     """Returns staff row dict or None. Used internally by auth.py."""
     if not pin:
         return None

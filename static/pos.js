@@ -214,34 +214,20 @@ function updateClock() {
 function setView(v) {
   state.view = v;
   const mapPane    = document.getElementById('map-pane');
-  const cardsPane  = document.getElementById('cards-pane');
   const kanbanPane = document.getElementById('kanban-pane');
   const pillMap    = document.getElementById('pill-map');
-  const pillCards  = document.getElementById('pill-cards');
   const pillList   = document.getElementById('pill-list');
 
   if (v === 'map') {
     mapPane.style.display    = '';
-    cardsPane.style.display  = 'none';
     kanbanPane.style.display = 'none';
     pillMap.classList.add('active');
-    pillCards.classList.remove('active');
     pillList.classList.remove('active');
     if (state.map) setTimeout(() => state.map.invalidateSize(), 50);
-  } else if (v === 'cards') {
-    mapPane.style.display    = 'none';
-    cardsPane.style.display  = '';
-    kanbanPane.style.display = 'none';
-    pillMap.classList.remove('active');
-    pillCards.classList.add('active');
-    pillList.classList.remove('active');
-    renderOrderCards();
   } else {
     mapPane.style.display    = 'none';
-    cardsPane.style.display  = 'none';
     kanbanPane.style.display = '';
     pillMap.classList.remove('active');
-    pillCards.classList.remove('active');
     pillList.classList.add('active');
     renderAllKanbanCols();
   }
@@ -1045,9 +1031,7 @@ async function loadKanban() {
     }
 
     updateStatCards(data.stats || {});
-    updateCardsStats(data.stats || {});
     if (state.view === 'list') renderAllKanbanCols();
-    if (state.view === 'cards') renderOrderCards();
     if (state.view === 'map')  renderMapPins();
     updateConnStatus(true);
   } catch (e) {
@@ -1077,50 +1061,6 @@ function updateStatCards(stats) {
   if (el('stat-pending'))    el('stat-pending').textContent    = stats.pending || 0;
   if (el('stat-delivering')) el('stat-delivering').textContent = stats.delivering || 0;
   if (el('stat-cash'))       el('stat-cash').textContent       = '฿' + (stats.uncleared_cash || 0).toLocaleString();
-}
-
-function updateCardsStats(stats) {
-  const el = (id) => document.getElementById(id);
-  if (el('cards-pending'))    el('cards-pending').textContent    = 'รอ: ' + (stats.pending || 0);
-  if (el('cards-delivering')) el('cards-delivering').textContent = 'ส่ง: ' + (stats.delivering || 0);
-  if (el('cards-completed'))  el('cards-completed').textContent  = 'เสร็จ: ' + (stats.completed || 0);
-}
-
-function showOrderDetail(orderId) {
-  // Find order in kanban data
-  const allOrders = [
-    ...(state.kanbanData.pending || []),
-    ...(state.kanbanData.preparing || []),
-    ...(state.kanbanData.delivering || []),
-    ...(state.kanbanData.completed || [])
-  ];
-  const order = allOrders.find(o => o.id === orderId);
-  if (!order) return;
-
-  // Create popover content
-  const timeStr = new Date(order.created_at).toLocaleTimeString('th-TH', {
-    hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
-  });
-  const statusText = order.status === 'completed' ? 'เสร็จสิ้น' :
-                    order.status === 'delivering' ? 'กำลังส่ง' :
-                    order.status === 'preparing' ? 'กำลังเตรียม' : 'รอจัดส่ง';
-
-  const content = `
-    <div style="padding:16px;max-width:300px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h4 style="margin:0;font-size:1rem">${order.order_num}</h4>
-        <span class="order-status-badge status-${order.status}">${statusText}</span>
-      </div>
-      <div style="margin-bottom:8px"><strong>ลูกค้า:</strong> ${order.customer_name}</div>
-      <div style="margin-bottom:8px"><strong>ที่อยู่:</strong> ${order.address}</div>
-      <div style="margin-bottom:8px"><strong>เวลา:</strong> ${timeStr}</div>
-      <div style="margin-bottom:8px"><strong>สินค้า:</strong> ${order.items_summary}</div>
-      <div style="margin-bottom:12px"><strong>รวม:</strong> ฿${order.total_amount?.toLocaleString()}</div>
-      ${order.driver_name ? `<div><strong>Driver:</strong> ${order.driver_name}</div>` : ''}
-    </div>
-  `;
-
-  showPopover(content, event.target);
 }
 
 function renderAllKanbanCols() {

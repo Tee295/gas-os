@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', checkSession);
 
 async function checkSession() {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    const res = await fetch('/api/auth/me');
     if (res.ok) {
       const d = await res.json();
       if (d.staff && d.staff.role === 'admin') { onLoginSuccess(d.staff); return; }
@@ -68,9 +68,7 @@ function onLoginSuccess(staff) {
   A.staff = staff;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('nav-staff').textContent = staff.name;
-  const av = document.getElementById('nav-avatar');
-  if (av) av.textContent = (staff.name || 'A')[0].toUpperCase();
+  document.getElementById('nav-staff').textContent = staff.name + ' (admin)';
   nav('dashboard');
 }
 async function logout() {
@@ -99,7 +97,6 @@ function loadView(view) {
     expenses: loadExpenses, vat: loadVAT, staff: loadStaff,
     audit: loadAudit, settings: loadSettings,
     bonus: loadBonus, translations: loadTranslations,
-    'tare-rules': loadTareRules,
   };
   if (loaders[view]) loaders[view]();
 }
@@ -714,46 +711,6 @@ async function loadBonus() {
       '</tr>'
     ).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-3)">ไม่มีข้อมูล</td></tr>';
   } catch (e) { toast('โหลดไม่ได้', 'error'); }
-}
-
-// ── Tare Rules view ──────────────────────────────────────────
-
-async function loadTareRules() {
-  try {
-    const d = await apiAdmin('GET', '/api/admin/tare-bonus-rules');
-    const rows = d.rules || d || [];
-    document.getElementById('tare-body').innerHTML = rows.map(r =>
-      '<tr>' +
-      '<td>' + (r.name || '—') + '</td>' +
-      '<td class="num">฿' + (r.rate_per_kg || 0) + ' / กก.</td>' +
-      '<td><span class="badge ' + (r.active ? 'badge-active' : 'badge-cancelled') + '">' + (r.active ? 'ใช้อยู่' : 'ไม่ใช้') + '</span></td>' +
-      '<td>' + (r.updated_by || '—') + '</td>' +
-      '<td>' + (r.updated_at || '').slice(0, 16) + '</td>' +
-      '<td>' + (!r.active ? '<button class="btn-xs" onclick="setTareActive(\'' + r.id + '\')">ใช้อัตรานี้</button>' : '') + '</td>' +
-      '</tr>'
-    ).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-3)">ยังไม่มีอัตรา</td></tr>';
-  } catch (e) { toast('โหลดไม่ได้', 'error'); }
-}
-
-async function saveTareRule() {
-  const name = (document.getElementById('tr-name').value || '').trim();
-  const rate = parseFloat(document.getElementById('tr-rate').value);
-  if (!name || isNaN(rate) || rate <= 0) { toast('กรุณากรอกชื่อและอัตรา (> 0)', 'error'); return; }
-  try {
-    await apiAdmin('POST', '/api/admin/tare-bonus-rules', { name, rate_per_kg: rate });
-    toast('บันทึกอัตราใหม่แล้ว', 'success');
-    document.getElementById('tr-name').value = '';
-    document.getElementById('tr-rate').value = '';
-    loadTareRules();
-  } catch (e) { toast('บันทึกไม่ได้', 'error'); }
-}
-
-async function setTareActive(rid) {
-  try {
-    await apiAdmin('PUT', '/api/admin/tare-bonus-rules/' + rid, { active: true });
-    toast('เปลี่ยนเป็นอัตรานี้แล้ว', 'success');
-    loadTareRules();
-  } catch (e) { toast('เปลี่ยนไม่ได้', 'error'); }
 }
 
 // ── Translations view ─────────────────────────────────────────
