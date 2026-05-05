@@ -423,7 +423,8 @@ function selectService(svc) {
 // ─── Products ─────────────────────────────────────────────────────────────────
 function renderProducts() {
   const list = document.getElementById('product-list');
-  const avail = S.products.filter(p => p.status === 'active');
+  // Backend returns status='available' for in-stock items
+  const avail = S.products.filter(p => p.status === 'available' || p.status === 'active');
   if (!avail.length) {
     list.innerHTML = '<p style="color:var(--text-3);text-align:center;padding:40px 0">ไม่มีสินค้า</p>';
     return;
@@ -432,8 +433,9 @@ function renderProducts() {
     const inCart = S.cart.find(c => c.product_id === p.id);
     const qty = inCart ? inCart.qty : 0;
     const isOut = p.full_qty <= 0;
+    const idEsc = String(p.id).replace(/'/g, "\\'");
     return '<div class="product-item' + (isOut ? ' out' : '') + '">'
-      + '<div class="prod-ico">' + (p.icon || '🔴') + '</div>'
+      + '<div class="prod-ico">' + (p.ico || p.icon || '🔴') + '</div>'
       + '<div class="prod-info">'
       + '<div class="prod-name">' + htmlEsc(p.name) + '</div>'
       + '<div class="prod-brand">' + htmlEsc(p.brand || '') + '</div>'
@@ -441,9 +443,9 @@ function renderProducts() {
       + '<div class="prod-stock">' + t('in_stock') + ': ' + p.full_qty + '</div>'
       + '</div>'
       + '<div class="qty-ctrl">'
-      + '<button class="qty-btn" onclick="changeQty(' + p.id + ',-1)" ' + (qty === 0 ? 'disabled' : '') + '>−</button>'
+      + "<button class=\"qty-btn\" onclick=\"changeQty('" + idEsc + "',-1)\" " + (qty === 0 ? 'disabled' : '') + '>−</button>'
       + '<div class="qty-num">' + qty + '</div>'
-      + '<button class="qty-btn" onclick="changeQty(' + p.id + ',1)" ' + (isOut ? 'disabled' : '') + '>+</button>'
+      + "<button class=\"qty-btn\" onclick=\"changeQty('" + idEsc + "',1)\" " + (isOut ? 'disabled' : '') + '>+</button>'
       + '</div>'
       + '</div>';
   }).join('');
