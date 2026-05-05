@@ -50,7 +50,7 @@ def get_orders():
 @require_auth(DRIVER_ROLES)
 def pickup_order(order_num):
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -78,7 +78,7 @@ def pickup_order(order_num):
 @require_auth(DRIVER_ROLES)
 def deliver_order(order_num):
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -138,7 +138,7 @@ def deliver_order(order_num):
 @require_auth(DRIVER_ROLES)
 def customer_absent(order_num):
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     order = db.execute(
         "SELECT * FROM orders WHERE order_num=? AND driver_id=?",
@@ -195,7 +195,7 @@ def cash_summary():
 @require_auth(DRIVER_ROLES)
 def return_cash():
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     today = bkk_now()[:10]
     # Sum uncleared cash

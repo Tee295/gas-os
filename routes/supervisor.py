@@ -95,7 +95,7 @@ def kanban():
 @require_auth(ALLOWED_ROLES)
 def create_order():
     staff  = g.actor
-    d      = request.get_json() or {}
+    d      = request.get_json(silent=True) or {}
     phone  = d.get('phone', '').strip()
     items_in = d.get('items', [])
     if not items_in:
@@ -300,7 +300,7 @@ def confirm_order(order_num):
 @require_auth(ALLOWED_ROLES)
 def dispatch_order(order_num):
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     order = db.execute("SELECT * FROM orders WHERE order_num=?", (order_num,)).fetchone()
     if not order:
@@ -327,7 +327,7 @@ def dispatch_order(order_num):
 @require_auth(ALLOWED_ROLES)
 def cancel_order(order_num):
     staff  = g.actor
-    d      = request.get_json() or {}
+    d      = request.get_json(silent=True) or {}
     reason = d.get('reason', '')
     if not reason:
         return jsonify({'error': 'reason required'}), 400
@@ -418,7 +418,7 @@ def complete_order(order_num):
 @require_auth(ALLOWED_ROLES)
 def record_payment(order_num):
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     db    = get_db()
     order = db.execute("SELECT * FROM orders WHERE order_num=?", (order_num,)).fetchone()
     if not order:
@@ -482,7 +482,7 @@ def get_stock():
 @require_auth(ALLOWED_ROLES)
 def adjust_stock():
     staff      = g.actor
-    d          = request.get_json() or {}
+    d          = request.get_json(silent=True) or {}
     product_id = d.get('product_id')
     if not product_id:
         return jsonify({'error': 'product_id required'}), 400
@@ -514,7 +514,7 @@ def adjust_stock():
 @require_auth(ALLOWED_ROLES)
 def create_restock():
     staff = g.actor
-    d     = request.get_json() or {}
+    d     = request.get_json(silent=True) or {}
     items = d.get('items', [])
     if not items:
         return jsonify({'error': 'items required'}), 400
@@ -640,7 +640,7 @@ def create_restock():
 @require_auth(ALLOWED_ROLES)
 def clear_cash():
     staff     = g.actor
-    d         = request.get_json() or {}
+    d         = request.get_json(silent=True) or {}
     driver_id = d.get('driver_id')
     if not driver_id:
         return jsonify({'error': 'driver_id required'}), 400

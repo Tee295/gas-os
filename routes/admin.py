@@ -108,7 +108,7 @@ def get_customers():
 @admin_bp.route('/customers', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_customer():
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     if not d.get('name') or not d.get('phone'):
         return jsonify({'error': 'name and phone required'}), 400
     cid = new_id(); now = bkk_now()
@@ -133,7 +133,7 @@ def create_customer():
 @admin_bp.route('/customers/<cid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_customer(cid):
-    staff = g.actor; d = request.get_json() or {}; db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE customers SET name=COALESCE(?,name), phone=COALESCE(?,phone),
@@ -154,7 +154,7 @@ def update_customer(cid):
 @require_auth(ADMIN_ONLY)
 def update_customer_credit(cid):
     """Approve/revoke credit + set limit + days."""
-    staff = g.actor; d = request.get_json() or {}; db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE customers SET
@@ -175,7 +175,7 @@ def update_customer_credit(cid):
 @require_auth(ADMIN_ONLY)
 def update_customer_documents(cid):
     """Set default document preferences (delivery_note + invoice)."""
-    staff = g.actor; d = request.get_json() or {}; db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE customers SET
@@ -196,7 +196,7 @@ def update_customer_documents(cid):
 @admin_bp.route('/customers/<cid>/payment', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def record_credit_payment(cid):
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     amount = float(d.get('amount', 0))
     if amount <= 0: return jsonify({'error': 'amount must be positive'}), 400
     now = bkk_now(); db = get_db()
@@ -249,7 +249,7 @@ def get_products():
 @admin_bp.route('/products', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_product():
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     if not d.get('name'): return jsonify({'error': 'name required'}), 400
     pid = new_id(); now = bkk_now(); price = int(d.get('price', 0))
     base, _ = calc_vat(price)
@@ -281,7 +281,7 @@ def create_product():
 @admin_bp.route('/products/<pid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_product(pid):
-    staff = g.actor; d = request.get_json() or {}; db = get_db(); now = bkk_now()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db(); now = bkk_now()
     old = db.execute("SELECT price FROM products WHERE id=?", (pid,)).fetchone()
     if not old: db.close(); return jsonify({'error': 'Not found'}), 404
     new_price = d.get('price')
@@ -340,7 +340,7 @@ def get_customer_prices(cid):
 @admin_bp.route('/customer-prices', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def set_customer_price():
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     cid = d.get('customer_id'); pid_p = d.get('product_id'); price = d.get('price')
     if not all([cid, pid_p, price is not None]):
         return jsonify({'error': 'customer_id, product_id, price required'}), 400
@@ -370,7 +370,7 @@ def get_suppliers():
 @admin_bp.route('/suppliers', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_supplier():
-    staff = g.actor; d = request.get_json() or {}; sid = new_id(); db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; sid = new_id(); db = get_db()
     with db:
         db.execute(
             "INSERT INTO suppliers (id,name,brand,phone,address,tax_id,credit_days,balance,note,active) VALUES (?,?,?,?,?,?,?,0,?,1)",
@@ -385,7 +385,7 @@ def create_supplier():
 @admin_bp.route('/suppliers/<sid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_supplier(sid):
-    d = request.get_json() or {}; db = get_db()
+    d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE suppliers SET name=COALESCE(?,name), brand=COALESCE(?,brand),
@@ -413,7 +413,7 @@ def supplier_statement(sid):
 @admin_bp.route('/suppliers/<sid>/payment', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def supplier_payment(sid):
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     amount = float(d.get('amount', 0))
     if amount <= 0: return jsonify({'error': 'amount required'}), 400
     now = bkk_now(); today = now[:10]; db = get_db(); pay_id = new_id()
@@ -474,7 +474,7 @@ def get_expenses():
 @admin_bp.route('/expenses', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_expense():
-    staff = g.actor; d = request.get_json() or {}; eid = new_id(); now = bkk_now()
+    staff = g.actor; d = request.get_json(silent=True) or {}; eid = new_id(); now = bkk_now()
     today = d.get('date', now[:10]); db = get_db()
     with db:
         db.execute(
@@ -531,7 +531,7 @@ def get_staff():
 @admin_bp.route('/staff', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_staff():
-    staff = g.actor; d = request.get_json() or {}
+    staff = g.actor; d = request.get_json(silent=True) or {}
     if not d.get('name') or not d.get('pin'):
         return jsonify({'error': 'name and pin required'}), 400
     sid = new_id(); now = bkk_now(); db = get_db()
@@ -553,7 +553,7 @@ def create_staff():
 @admin_bp.route('/staff/<sid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_staff(sid):
-    staff = g.actor; d = request.get_json() or {}; db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE staff SET name=COALESCE(?,name), phone=COALESCE(?,phone),
@@ -582,7 +582,7 @@ def get_tare_rules():
 @admin_bp.route('/tare-bonus-rules', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_tare_rule():
-    staff = g.actor; d = request.get_json() or {}; rid = new_id(); now = bkk_now(); db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; rid = new_id(); now = bkk_now(); db = get_db()
     with db:
         db.execute(
             "INSERT INTO tare_bonus_rules (id,name,rate_per_kg,active,updated_by,updated_at) VALUES (?,?,?,?,?,?)",
@@ -596,7 +596,7 @@ def create_tare_rule():
 @admin_bp.route('/tare-bonus-rules/<rid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_tare_rule(rid):
-    staff = g.actor; d = request.get_json() or {}; now = bkk_now(); db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; now = bkk_now(); db = get_db()
     with db:
         db.execute(
             """UPDATE tare_bonus_rules SET name=COALESCE(?,name),
@@ -644,7 +644,7 @@ def get_translations():
 @admin_bp.route('/translations', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def upsert_translation():
-    d = request.get_json() or {}
+    d = request.get_json(silent=True) or {}
     lang_code = d.get('lang_code'); key = d.get('key'); value = d.get('value')
     if not all([lang_code, key, value is not None]):
         return jsonify({'error': 'lang_code, key, value required'}), 400
@@ -689,7 +689,7 @@ def get_settings():
 @admin_bp.route('/settings', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def update_settings():
-    staff = g.actor; d = request.get_json() or {}; db = get_db()
+    staff = g.actor; d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         for k, v in d.items():
             db.execute("INSERT OR REPLACE INTO settings(key,val) VALUES(?,?)", (k, str(v)))
@@ -716,7 +716,7 @@ def get_fees():
 @admin_bp.route('/fees', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_fee():
-    d = request.get_json() or {}; fid = new_id(); db = get_db()
+    d = request.get_json(silent=True) or {}; fid = new_id(); db = get_db()
     with db:
         db.execute(
             "INSERT INTO fees (id,name,type,amount,condition_type,condition_value,active,sort_order) VALUES (?,?,?,?,?,?,?,?)",
@@ -731,7 +731,7 @@ def create_fee():
 @admin_bp.route('/fees/<fid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_fee(fid):
-    d = request.get_json() or {}; db = get_db()
+    d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE fees SET name=COALESCE(?,name), type=COALESCE(?,type),
@@ -766,7 +766,7 @@ def get_payment_methods():
 @admin_bp.route('/payment-methods', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_payment_method():
-    d = request.get_json() or {}; pid = new_id(); db = get_db()
+    d = request.get_json(silent=True) or {}; pid = new_id(); db = get_db()
     with db:
         db.execute(
             "INSERT INTO payment_methods (id,name,type,active,require_tier,sort_order,config_json) VALUES (?,?,?,?,?,?,?)",
@@ -780,7 +780,7 @@ def create_payment_method():
 @admin_bp.route('/payment-methods/<pid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_payment_method(pid):
-    d = request.get_json() or {}; db = get_db()
+    d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE payment_methods SET name=COALESCE(?,name), type=COALESCE(?,type),
@@ -804,7 +804,7 @@ def get_languages():
 @admin_bp.route('/languages/<code>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_language(code):
-    d = request.get_json() or {}; db = get_db()
+    d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE languages SET name=COALESCE(?,name), native_name=COALESCE(?,native_name),
@@ -828,7 +828,7 @@ def get_spare_parts():
 @admin_bp.route('/spare-parts', methods=['POST'])
 @require_auth(ADMIN_ONLY)
 def create_spare_part():
-    d = request.get_json() or {}; pid = new_id(); db = get_db()
+    d = request.get_json(silent=True) or {}; pid = new_id(); db = get_db()
     with db:
         db.execute(
             "INSERT INTO spare_parts (id,name,qty,unit,reorder_point,cost,note) VALUES (?,?,?,?,?,?,?)",
@@ -842,7 +842,7 @@ def create_spare_part():
 @admin_bp.route('/spare-parts/<pid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_spare_part(pid):
-    d = request.get_json() or {}; db = get_db()
+    d = request.get_json(silent=True) or {}; db = get_db()
     with db:
         db.execute(
             """UPDATE spare_parts SET name=COALESCE(?,name), qty=COALESCE(?,qty),

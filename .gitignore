@@ -40,15 +40,14 @@ Thumbs.db
 *.backup
 *-backup-*
 gasshop-backup-*.db
-gasshop-backup-*.sql.gz
 
-# Cookies / temp test files
+# Cookies / temp
 cookies.txt
 *.pid
 
-# Node (if any tools)
+# Node
 node_modules/
 
-# Build outputs
+# Build
 dist/
 build/
