@@ -420,18 +420,89 @@ async function viewStatement(supId) {
 async function loadRestock() {
   try {
     const rows = await apiAdmin('GET', '/api/admin/restock');
-    document.getElementById('restock-body').innerHTML = rows.map(r =>
-      '<tr>' +
-      '<td class="accent-text">' + (r.batch_id || r.id) + '</td>' +
-      '<td>' + (r.date || '') + '</td>' +
-      '<td>' + (r.supplier_name || '—') + '</td>' +
-      '<td>' + (r.invoice_num || '—') + '</td>' +
-      '<td class="num">฿' + (r.total_cost || 0).toLocaleString() + '</td>' +
-      '<td><span class="badge badge-' + (r.status === 'paid' ? 'completed' : 'pending') + '">' + r.status + '</span></td>' +
-      '<td><button class="btn-xs" onclick="alert(JSON.stringify(' + JSON.stringify(r.items || []).replace(/"/g, '&quot;') + '))">รายการ</button></td>' +
-      '</tr>'
-    ).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-3)">ไม่มีข้อมูล</td></tr>';
+    A.restockList = rows;  // cache for detail popup
+    document.getElementById('restock-body').innerHTML = rows.map((r, idx) => {
+      const total = r.net_total ?? r.gross_total ?? r.total_cost ?? 0;
+      return '<tr>' +
+        '<td class="accent-text">' + (r.batch_id || r.id) + '</td>' +
+        '<td>' + (r.date || '') + '</td>' +
+        '<td>' + (r.supplier_name || '—') + '</td>' +
+        '<td>' + (r.invoice_num || '—') + '</td>' +
+        '<td class="num">฿' + Math.round(total).toLocaleString() + '</td>' +
+        '<td><span class="badge badge-' + (r.status === 'paid' ? 'completed' : 'pending') + '">' + r.status + '</span></td>' +
+        '<td><button class="btn-xs" onclick="showRestockDetail(' + idx + ')">ดูรายการ</button></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-3)">ไม่มีข้อมูล</td></tr>';
   } catch (e) {}
+}
+
+// Show restock invoice detail in a styled modal
+function showRestockDetail(idx) {
+  const r = (A.restockList || [])[idx];
+  if (!r) return;
+  const items = r.items || [];
+  const itemsTotal = items.reduce((s, i) => s + (i.subtotal || (i.qty * i.cost_per_unit) || 0), 0);
+  const fmt = v => '฿' + Math.round(v || 0).toLocaleString();
+
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;font-size:0.88rem">'
+    + '<div><div class="label-tiny">Batch ID</div><div class="accent-text" style="font-weight:600">' + (r.batch_id || '—') + '</div></div>'
+    + '<div><div class="label-tiny">วันที่</div><div>' + (r.date || '—') + '</div></div>'
+    + '<div><div class="label-tiny">Supplier</div><div>' + (r.supplier_name || '—') + '</div></div>'
+    + '<div><div class="label-tiny">เลขที่ใบกำกับ</div><div>' + (r.invoice_num || '—') + '</div></div>'
+    + '<div><div class="label-tiny">ประเภทเอกสาร</div><div>' + (r.doc_type === 'tax' ? 'ใบกำกับภาษี' : 'ใบเสร็จ') + '</div></div>'
+    + '<div><div class="label-tiny">ผู้บันทึก</div><div>' + (r.created_by || '—') + '</div></div>'
+    + '</div>';
+
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:14px">'
+    + '<thead><tr style="border-bottom:1px solid var(--border-hairline);color:var(--text-3)">'
+    + '<th style="text-align:left;padding:6px">สินค้า</th>'
+    + '<th style="text-align:right;padding:6px">จำนวน</th>'
+    + '<th style="text-align:right;padding:6px">ต้นทุน/หน่วย</th>'
+    + '<th style="text-align:right;padding:6px">รวม</th>'
+    + '</tr></thead><tbody>';
+  items.forEach(i => {
+    html += '<tr style="border-bottom:1px solid var(--border-hairline)">'
+      + '<td style="padding:6px">' + (i.product_name || '—') + '</td>'
+      + '<td style="text-align:right;padding:6px">' + (i.qty || 0) + '</td>'
+      + '<td style="text-align:right;padding:6px">' + fmt(i.cost_per_unit) + '</td>'
+      + '<td style="text-align:right;padding:6px">' + fmt(i.subtotal) + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+
+  html += '<div style="background:var(--bg-surface);padding:12px;border-radius:6px;font-size:0.88rem">'
+    + '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ยอดสินค้า</span><span>' + fmt(itemsTotal) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>VAT</span><span>' + fmt(r.vat_amount) + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ยอดก่อนหักถังเปล่า</span><span>' + fmt(r.gross_total) + '</span></div>';
+  if ((r.tare_weight_kg || 0) > 0) {
+    html += '<div style="display:flex;justify-content:space-between;padding:3px 0;color:var(--success)"><span>หักถังเปล่า ' + r.tare_weight_kg + ' กก. × ฿' + r.tare_rate + '</span><span>-' + fmt(r.tare_discount) + '</span></div>';
+  }
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;margin-top:6px;border-top:1px solid var(--border-hairline);font-weight:600;font-size:1rem"><span>ยอดสุทธิ</span><span class="accent-text">' + fmt(r.net_total) + '</span></div>'
+    + '</div>';
+
+  if (r.pickup_staff_name) {
+    html += '<div style="margin-top:10px;font-size:0.82rem;color:var(--text-3)">พนักงานรับสินค้า: ' + r.pickup_staff_name + '</div>';
+  }
+  if (r.note) {
+    html += '<div style="margin-top:10px;font-size:0.82rem"><strong>หมายเหตุ:</strong> ' + r.note + '</div>';
+  }
+
+  // Inject into modal
+  let modal = document.getElementById('restock-detail-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'restock-detail-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'none';
+    modal.innerHTML = '<div class="modal-box" style="max-width:640px">'
+      + '<div class="modal-title" id="rdm-title">รายละเอียดใบรับสินค้า</div>'
+      + '<div id="rdm-body"></div>'
+      + '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal(\'restock-detail-modal\')">ปิด</button></div>'
+      + '</div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('rdm-body').innerHTML = html;
+  modal.style.display = 'flex';
 }
 
 function openRestockModal() {
@@ -483,8 +554,10 @@ async function saveRestock() {
   try {
     const res = await apiAdmin('POST', '/api/supervisor/restock', body);
     closeModal('restock-modal');
-    loadRestock();
-    toast('รับสินค้า Batch ' + res.batch_id + ' แล้ว', 'success');
+    // Refresh both restock list AND products (because stock changed)
+    await loadRestock();
+    if (typeof loadProducts === 'function') await loadProducts();
+    toast('รับสินค้า Batch ' + res.batch_id + ' รวม ฿' + Math.round(res.net_total || res.gross_total || 0).toLocaleString() + ' แล้ว', 'success');
   } catch (e) { toast('รับสินค้าไม่ได้: ' + (e.message || ''), 'error'); }
 }
 

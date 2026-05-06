@@ -151,3 +151,12 @@ tbody td { padding: 9px 12px; color: var(--text-2); vertical-align: middle; }
   .table-wrap { border: none; }
   table { font-size: 11px; }
 }
+
+/* Restock detail modal labels */
+.label-tiny {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}

@@ -1391,8 +1391,9 @@ async function submitRestock() {
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'บันทึกไม่ได้', 'error'); return; }
     const totalQty = lines.reduce((s, l) => s + l.qty, 0);
+    const netTotal = data.net_total || data.gross_total || 0;
     closeModal('restock-modal');
-    showToast('รับสินค้าแล้ว ' + lines.length + ' รายการ รวม ' + totalQty + ' ถัง', 'success');
+    showToast('รับสินค้า ' + (data.batch_id || '') + ' · ' + totalQty + ' ถัง · ฿' + Math.round(netTotal).toLocaleString(), 'success');
     loadProducts(); loadKanban();
   } catch (e) { showToast('เชื่อมต่อไม่ได้', 'error'); }
 }
