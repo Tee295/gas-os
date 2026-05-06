@@ -447,6 +447,7 @@ def _migrate(conn):
         ('proof_photo_url',        'TEXT DEFAULT ""'),
         ('proof_photo_taken_at',   'TEXT DEFAULT ""'),
         ('scheduled_at',           'TEXT DEFAULT ""'),
+        ('vat',                    'REAL DEFAULT 0'),
     ]:
         _add_col('orders', col, defn)
 
