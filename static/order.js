@@ -264,6 +264,8 @@ function applyI18n() {
 // ─── Steps ────────────────────────────────────────────────────────────────────
 // Step ids: 0=lang, 1=phone, 1.5=register (handled separately), 2=type, 3=products, 4=address, 5=payment, 6=review, 7=track
 function goStep(n) {
+  // Note: step-address (n=4) is always shown for delivery orders so customer
+  // can confirm/change the destination. For walk-in (มารับเอง), skip address.
   if (n === 4 && S.orderType !== 'delivery') {
     goStep(5); return;
   }
@@ -330,6 +332,24 @@ async function confirmPhone() {
       if (S.customer && S.customer.id) {
         loadSavedAddresses(S.customer.id);
       }
+      // Check if there's an active order — if so, offer to track it
+      try {
+        const histRes = await fetch('/api/customer/orders/' + S.phone);
+        const orders  = await histRes.json();
+        const active  = (orders || []).find(o => o.status !== 'completed' && o.status !== 'cancelled');
+        if (active) {
+          // Offer choice: track existing or place new
+          const choice = confirm(
+            'คุณมีออเดอร์ ' + active.order_num + ' กำลังดำเนินการ\n'
+            + 'สถานะ: ' + (active.status || 'pending') + '\n\n'
+            + 'ตกลง = ดูสถานะออเดอร์เดิม\nยกเลิก = สั่งใหม่'
+          );
+          if (choice) {
+            startTracking(active.order_num);
+            return;
+          }
+        }
+      } catch (e) {}
       goStep(2);
       renderTypeStep();
     }
@@ -525,24 +545,67 @@ function updateCartBar() {
 
 // ─── Address Step ─────────────────────────────────────────────────────────────
 function initAddressStep() {
-  const addrs = S.savedAddresses || [];
+  // Use customer's existing addresses[] from identify response if not loaded yet
+  const addrs = S.savedAddresses && S.savedAddresses.length
+    ? S.savedAddresses
+    : (S.customer && S.customer.addresses ? S.customer.addresses : []);
+  S.savedAddresses = addrs;
+
+  // Auto-prefill default address: pick is_default=1 first, fallback to first
+  let defaultAddr = addrs.find(a => a.is_default) || addrs[0];
+  if (defaultAddr) {
+    S.address.text = defaultAddr.address || '';
+    S.address.lat  = defaultAddr.lat;
+    S.address.lng  = defaultAddr.lng;
+    const ti = document.getElementById('address-text');
+    if (ti) ti.value = S.address.text;
+  } else if (S.customer && S.customer.address) {
+    S.address.text = S.customer.address || '';
+    S.address.lat  = S.customer.lat;
+    S.address.lng  = S.customer.lng;
+    const ti = document.getElementById('address-text');
+    if (ti) ti.value = S.address.text;
+  }
+
+  // Render saved addresses list
   const listEl = document.getElementById('saved-addresses-list');
   if (listEl) {
     if (addrs.length) {
       listEl.style.display = 'block';
-      listEl.innerHTML = '<div style="font-size:.8rem;color:var(--text-3);margin-bottom:8px">ที่อยู่ที่บันทึกไว้</div>'
-        + addrs.map((a, i) =>
-            '<div class="saved-addr-btn" onclick="selectSavedAddress(' + i + ')">'
-            + '<strong>' + htmlEsc(a.label || 'บ้าน') + '</strong> — '
-            + htmlEsc(a.address || '')
-            + '</div>'
-          ).join('')
-        + '<div class="saved-addr-btn" onclick="usePinAddress()" style="color:var(--accent)">+ ที่อยู่ใหม่ (ปักหมุด)</div>';
+      listEl.innerHTML = '';
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'font-size:.8rem;color:var(--text-3);margin-bottom:8px';
+      hdr.textContent = 'ที่อยู่ที่บันทึกไว้';
+      listEl.appendChild(hdr);
+      addrs.forEach((a, i) => {
+        const btn = document.createElement('div');
+        btn.className = 'saved-addr-btn';
+        if (defaultAddr && a === defaultAddr) btn.classList.add('selected');
+        btn.onclick = () => selectSavedAddress(i);
+        const strong = document.createElement('strong');
+        strong.textContent = a.label || 'บ้าน';
+        btn.appendChild(strong);
+        btn.appendChild(document.createTextNode(' — ' + (a.address || '')));
+        listEl.appendChild(btn);
+      });
+      const newBtn = document.createElement('div');
+      newBtn.className = 'saved-addr-btn';
+      newBtn.style.color = 'var(--accent)';
+      newBtn.onclick = usePinAddress;
+      newBtn.textContent = '+ ที่อยู่ใหม่ (ปักหมุดบนแผนที่)';
+      listEl.appendChild(newBtn);
     } else {
       listEl.style.display = 'none';
     }
   }
   initMap();
+  // Move marker to default location if we have one
+  if (defaultAddr && defaultAddr.lat && defaultAddr.lng && S.mapObj) {
+    setTimeout(() => {
+      S.mapObj.setView([defaultAddr.lat, defaultAddr.lng], 16);
+      if (S.mapMarker) S.mapMarker.setLatLng([defaultAddr.lat, defaultAddr.lng]);
+    }, 100);
+  }
 }
 
 function selectSavedAddress(idx) {
@@ -551,16 +614,29 @@ function selectSavedAddress(idx) {
   S.address.text = a.address || '';
   S.address.lat  = a.lat;
   S.address.lng  = a.lng;
-  document.getElementById('address-text').value = S.address.text;
+  const ti = document.getElementById('address-text');
+  if (ti) ti.value = S.address.text;
   if (a.lat && a.lng && S.mapObj) {
-    S.mapObj.setView([a.lat, a.lng], 16);
-    S.mapMarker.setLatLng([a.lat, a.lng]);
+    S.mapObj.setView([a.lat, a.lng], 17);
+    if (S.mapMarker) S.mapMarker.setLatLng([a.lat, a.lng]);
   }
+  // Highlight selected
+  document.querySelectorAll('#saved-addresses-list .saved-addr-btn').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
 }
 
 function usePinAddress() {
-  document.getElementById('address-text').value = '';
+  const ti = document.getElementById('address-text');
+  if (ti) {
+    ti.value = '';
+    ti.focus();
+  }
   S.address.text = '';
+  // Hint user to drag marker
+  if (S.mapObj) {
+    S.mapObj.invalidateSize();
+  }
 }
 
 // ─── Map ──────────────────────────────────────────────────────────────────────

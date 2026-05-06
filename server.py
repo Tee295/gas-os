@@ -676,6 +676,13 @@ def serve_sw():
                                mimetype='application/javascript')
 
 
+@app.route('/favicon.ico')
+def serve_favicon():
+    """Return 204 No Content to silence the 404 spam in dev tools."""
+    from flask import Response
+    return Response(status=204)
+
+
 # ─── Register Blueprints ─────────────────────────────────────────────────────
 
 from routes.auth       import auth_bp
