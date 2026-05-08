@@ -598,14 +598,57 @@ function initAddressStep() {
       listEl.style.display = 'none';
     }
   }
+
+  // Tell initMap to skip geolocation (we have a default)
+  S.skipGeolocation = !!(defaultAddr && defaultAddr.lat && defaultAddr.lng);
   initMap();
-  // Move marker to default location if we have one
+
+  // Move marker to default location AFTER initMap finishes
   if (defaultAddr && defaultAddr.lat && defaultAddr.lng && S.mapObj) {
+    // Delay slightly to ensure map is rendered
     setTimeout(() => {
-      S.mapObj.setView([defaultAddr.lat, defaultAddr.lng], 16);
-      if (S.mapMarker) S.mapMarker.setLatLng([defaultAddr.lat, defaultAddr.lng]);
-    }, 100);
+      if (S.mapObj && S.mapMarker) {
+        S.mapObj.setView([defaultAddr.lat, defaultAddr.lng], 17);
+        S.mapMarker.setLatLng([defaultAddr.lat, defaultAddr.lng]);
+        S.mapObj.invalidateSize();
+      }
+    }, 200);
   }
+
+  // Add "use current location" button
+  addLocateMeButton();
+}
+
+function addLocateMeButton() {
+  let btn = document.getElementById('locate-me-btn');
+  if (btn) return;  // already added
+  const mapEl = document.getElementById('map-container');
+  if (!mapEl || !mapEl.parentNode) return;
+  btn = document.createElement('button');
+  btn.id = 'locate-me-btn';
+  btn.type = 'button';
+  btn.textContent = '📍 ใช้ตำแหน่งปัจจุบัน';
+  btn.style.cssText = 'margin-top:8px;padding:10px 16px;background:var(--accent);color:#fff;border:0;border-radius:6px;font-size:0.9rem;cursor:pointer;width:100%';
+  btn.onclick = useCurrentLocation;
+  mapEl.parentNode.insertBefore(btn, mapEl.nextSibling);
+}
+
+function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    alert('ไม่รองรับการระบุตำแหน่ง');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (S.mapObj && S.mapMarker) {
+      S.mapObj.setView(ll, 17);
+      S.mapMarker.setLatLng(ll);
+      S.address.lat = ll[0];
+      S.address.lng = ll[1];
+    }
+  }, err => {
+    alert('ไม่สามารถระบุตำแหน่งได้: ' + (err.message || 'permission denied'));
+  });
 }
 
 function selectSavedAddress(idx) {
@@ -665,14 +708,17 @@ function initMap() {
     S.address.lng = e.latlng.lng;
   });
 
-  // Try geolocation
-  if (navigator.geolocation) {
+  // Try geolocation only if no default address pre-selected
+  if (!S.skipGeolocation && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
-      const ll = [pos.coords.latitude, pos.coords.longitude];
-      S.mapObj.setView(ll, 16);
-      S.mapMarker.setLatLng(ll);
-      S.address.lat = ll[0];
-      S.address.lng = ll[1];
+      // Only override if user hasn't moved marker yet (still at default Bangkok center)
+      if (S.address.lat === defaultLat && S.address.lng === defaultLng) {
+        const ll = [pos.coords.latitude, pos.coords.longitude];
+        S.mapObj.setView(ll, 16);
+        S.mapMarker.setLatLng(ll);
+        S.address.lat = ll[0];
+        S.address.lng = ll[1];
+      }
     }, () => {});
   }
 }

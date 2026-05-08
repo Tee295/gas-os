@@ -1212,6 +1212,11 @@ async function confirmCancel() {
 
 async function openStockModal() {
   closeAllOverlays();
+  // Extra: force-destroy any addr-picker map that might still be rendering
+  if (typeof apState !== 'undefined' && apState && apState.map) {
+    try { apState.map.remove(); } catch (e) {}
+    apState.map = null;
+  }
   try {
     const res  = await fetch('/api/supervisor/stock', { credentials: 'same-origin' });
     const data = await res.json();

@@ -130,6 +130,25 @@ def create_customer():
     return jsonify({'id': cid}), 201
 
 
+@admin_bp.route('/customers/<cid>', methods=['GET'])
+@require_auth(ADMIN_ONLY)
+def get_customer(cid):
+    db = get_db()
+    row = db.execute("SELECT * FROM customers WHERE id=?", (cid,)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({'error': 'not found'}), 404
+    cust = dict(row)
+    # Include addresses
+    addrs = db.execute(
+        "SELECT id,label,address,lat,lng,is_default FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC",
+        (cid,)
+    ).fetchall()
+    cust['addresses'] = [dict(a) for a in addrs]
+    db.close()
+    return jsonify(cust)
+
+
 @admin_bp.route('/customers/<cid>', methods=['PUT'])
 @require_auth(ADMIN_ONLY)
 def update_customer(cid):

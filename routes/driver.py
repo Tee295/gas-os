@@ -173,20 +173,30 @@ def cash_summary():
     db    = get_db()
     today = bkk_now()[:10]
     orders = db.execute(
-        """SELECT order_num, cust_name, cash_collected, payment_method
+        """SELECT order_num, cust_name as customer_name,
+                  cash_collected, cash_collected as cash_received,
+                  payment_method,
+                  COALESCE(cash_cleared, 0) as cleared
            FROM orders
            WHERE driver_id=? AND date=? AND status='completed'
            ORDER BY delivered_at""",
         (staff['id'], today)
     ).fetchall()
+    # Total still owed (uncleared cash)
     total_cash = sum(
-        o['cash_collected'] for o in orders
+        (o['cash_collected'] or 0) for o in orders
+        if o['payment_method'] == 'เงินสด' and not o['cleared']
+    )
+    # Total collected today (regardless of cleared status)
+    total_collected_today = sum(
+        (o['cash_collected'] or 0) for o in orders
         if o['payment_method'] == 'เงินสด'
     )
     db.close()
     return jsonify({
         'orders': [dict(o) for o in orders],
         'total_cash': total_cash,
+        'total_collected_today': total_collected_today,
         'driver': staff['name'],
     })
 

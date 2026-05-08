@@ -505,60 +505,158 @@ function showRestockDetail(idx) {
   modal.style.display = 'flex';
 }
 
-function openRestockModal() {
-  A.restockItems = [];
+async function openRestockModal() {
+  // Ensure suppliers are loaded — user may not have visited Suppliers tab yet
+  if (!A.suppliers || !A.suppliers.length) {
+    try {
+      A.suppliers = await apiAdmin('GET', '/api/admin/suppliers');
+    } catch (e) {
+      A.suppliers = [];
+    }
+  }
+  // Ensure products loaded
+  if (!A.products || !A.products.length) {
+    try {
+      A.products = await apiAdmin('GET', '/api/admin/products');
+    } catch (e) { A.products = []; }
+  }
+
+  // Start with one empty item row so user doesn't see blank list
+  A.restockItems = [{ product_id: '', qty: 1, cost_per_unit: 0 }];
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('rm-date').value = today;
-  document.getElementById('rm-supplier_id').innerHTML =
+
+  const supSel = document.getElementById('rm-supplier_id');
+  const supOptions = '<option value="">-- เลือก Supplier --</option>' +
     A.suppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+  supSel.innerHTML = supOptions;
+
+  // Reset other fields
+  const invField = document.getElementById('rm-invoice_num');
+  if (invField) invField.value = '';
+  const docTypeField = document.getElementById('rm-doc_type');
+  if (docTypeField) docTypeField.value = 'tax';
+
   renderRestockItems();
+  renderRestockTotal();
   document.getElementById('restock-modal').style.display = 'flex';
 }
 
 function addRestockItem() {
   A.restockItems.push({ product_id: '', qty: 1, cost_per_unit: 0 });
   renderRestockItems();
+  renderRestockTotal();
+}
+
+function _restockItemChange(idx, field, val) {
+  if (!A.restockItems[idx]) return;
+  if (field === 'product_id') A.restockItems[idx].product_id = val;
+  else if (field === 'qty') A.restockItems[idx].qty = parseInt(val) || 0;
+  else if (field === 'cost_per_unit') A.restockItems[idx].cost_per_unit = parseFloat(val) || 0;
+  renderRestockTotal();
+}
+
+function _restockItemRemove(idx) {
+  A.restockItems.splice(idx, 1);
+  if (!A.restockItems.length) A.restockItems.push({ product_id: '', qty: 1, cost_per_unit: 0 });
+  renderRestockItems();
+  renderRestockTotal();
 }
 
 function renderRestockItems() {
   const container = document.getElementById('rm-items');
-  const inner = A.restockItems.map((item, i) =>
-    '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">' +
-    '<select class="filter-select" style="flex:2" onchange="A.restockItems[' + i + '].product_id=this.value">' +
-    '<option value="">-- สินค้า --</option>' +
-    A.products.map(p =>
-      '<option value="' + p.id + '" ' + (item.product_id === p.id ? 'selected' : '') + '>' + p.name + '</option>'
-    ).join('') +
-    '</select>' +
-    '<input class="filter-input" type="number" style="width:70px" placeholder="จำนวน" value="' + item.qty + '" ' +
-    'onchange="A.restockItems[' + i + '].qty=parseInt(this.value)||0">' +
-    '<input class="filter-input" type="number" style="width:90px" placeholder="ต้นทุน/ถัง" value="' + item.cost_per_unit + '" ' +
-    'onchange="A.restockItems[' + i + '].cost_per_unit=parseFloat(this.value)||0">' +
-    '<button class="btn-xs danger" onclick="A.restockItems.splice(' + i + ',1);renderRestockItems()">✕</button>' +
-    '</div>'
-  ).join('');
-  container.innerHTML =
-    '<div style="font-size:0.82rem;color:var(--text-3);margin-bottom:6px">รายการสินค้า</div>' +
-    inner;
+  if (!container) return;
+  container.innerHTML = '';
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-size:0.82rem;color:var(--text-3);margin-bottom:6px';
+  hdr.textContent = 'รายการสินค้า';
+  container.appendChild(hdr);
+
+  A.restockItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+
+    const sel = document.createElement('select');
+    sel.className = 'filter-select';
+    sel.style.flex = '2';
+    let opts = '<option value="">-- สินค้า --</option>';
+    (A.products || []).forEach(p => {
+      const selAttr = item.product_id === p.id ? ' selected' : '';
+      opts += '<option value="' + p.id + '"' + selAttr + '>' + p.name + '</option>';
+    });
+    sel.innerHTML = opts;
+    sel.onchange = (e) => _restockItemChange(i, 'product_id', e.target.value);
+    row.appendChild(sel);
+
+    const qty = document.createElement('input');
+    qty.type = 'number'; qty.className = 'filter-input';
+    qty.style.width = '70px'; qty.placeholder = 'จำนวน'; qty.value = item.qty;
+    qty.onchange = (e) => _restockItemChange(i, 'qty', e.target.value);
+    row.appendChild(qty);
+
+    const cost = document.createElement('input');
+    cost.type = 'number'; cost.className = 'filter-input';
+    cost.style.width = '90px'; cost.placeholder = 'ต้นทุน/ถัง'; cost.value = item.cost_per_unit;
+    cost.onchange = (e) => _restockItemChange(i, 'cost_per_unit', e.target.value);
+    row.appendChild(cost);
+
+    const del = document.createElement('button');
+    del.className = 'btn-xs danger';
+    del.textContent = '✕';
+    del.onclick = () => _restockItemRemove(i);
+    row.appendChild(del);
+
+    container.appendChild(row);
+  });
+}
+
+// Show running total at bottom of modal
+function renderRestockTotal() {
+  let totalEl = document.getElementById('rm-running-total');
+  if (!totalEl) {
+    const items = document.getElementById('rm-items');
+    if (!items || !items.parentNode) return;
+    totalEl = document.createElement('div');
+    totalEl.id = 'rm-running-total';
+    totalEl.style.cssText = 'margin-top:10px;padding:10px;background:var(--bg-surface);border-radius:6px;font-size:0.9rem';
+    items.parentNode.insertBefore(totalEl, items.nextSibling);
+  }
+  const subtotal = A.restockItems.reduce((s, it) => s + (it.qty || 0) * (it.cost_per_unit || 0), 0);
+  const vat = Math.round(subtotal * 0.07);
+  const total = subtotal + vat;
+  totalEl.innerHTML =
+    '<div style="display:flex;justify-content:space-between;padding:2px 0"><span>ยอดสินค้า</span><span>฿' + Math.round(subtotal).toLocaleString() + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:2px 0"><span>VAT 7%</span><span>฿' + vat.toLocaleString() + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:600;border-top:1px solid var(--border-hairline);margin-top:4px"><span>รวม</span><span class="accent-text">฿' + Math.round(total).toLocaleString() + '</span></div>';
 }
 
 async function saveRestock() {
-  if (!A.restockItems.length) { toast('เพิ่มรายการสินค้าก่อน', 'error'); return; }
+  const validItems = A.restockItems.filter(i => i.product_id && i.qty > 0);
+  if (!validItems.length) {
+    toast('กรุณาเลือกสินค้าและใส่จำนวนอย่างน้อย 1 รายการ', 'error');
+    return;
+  }
+  const subtotal = validItems.reduce((s, it) => s + it.qty * it.cost_per_unit, 0);
+  const vat_amount = Math.round(subtotal * 0.07);
   const body = {
     date: document.getElementById('rm-date').value,
     supplier_id: document.getElementById('rm-supplier_id').value,
     invoice_num: document.getElementById('rm-invoice_num').value,
     doc_type: document.getElementById('rm-doc_type').value,
-    items: A.restockItems.filter(i => i.product_id && i.qty > 0),
+    items: validItems,
+    vat_amount: vat_amount,
+    tare_weight_kg: 0,
   };
   try {
     const res = await apiAdmin('POST', '/api/supervisor/restock', body);
     closeModal('restock-modal');
-    // Refresh both restock list AND products (because stock changed)
     await loadRestock();
     if (typeof loadProducts === 'function') await loadProducts();
-    toast('รับสินค้า Batch ' + res.batch_id + ' รวม ฿' + Math.round(res.net_total || res.gross_total || 0).toLocaleString() + ' แล้ว', 'success');
-  } catch (e) { toast('รับสินค้าไม่ได้: ' + (e.message || ''), 'error'); }
+    toast('รับสินค้า ' + res.batch_id + ' รวม ฿' + Math.round(res.net_total || res.gross_total || 0).toLocaleString() + ' แล้ว', 'success');
+  } catch (e) {
+    toast('รับสินค้าไม่ได้: ' + (e.message || 'unknown'), 'error');
+  }
 }
 
 // ── Expenses ─────────────────────────────────────────────────

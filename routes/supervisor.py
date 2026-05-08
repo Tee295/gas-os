@@ -747,14 +747,14 @@ def today_summary():
     db    = get_db()
     today = bkk_now()[:10]
     stats = db.execute(
-        """SELECT COUNT(*) as orders, SUM(total) as revenue,
-             SUM(CASE WHEN payment_method='เงินสด'   AND status='completed' THEN cash_collected ELSE 0 END) as cash_in,
-             SUM(CASE WHEN payment_method='เงินสด'   AND status='completed' THEN 1 ELSE 0 END) as cash_count,
-             SUM(CASE WHEN payment_method='โอน+สลิป' AND status='completed' THEN total ELSE 0 END) as transfer_in,
-             SUM(CASE WHEN payment_method='โอน+สลิป' AND status='completed' THEN 1 ELSE 0 END) as transfer_count,
-             SUM(CASE WHEN payment_method='เครดิต'   AND status='completed' THEN total ELSE 0 END) as credit_in,
-             SUM(CASE WHEN payment_method='เครดิต'   AND status='completed' THEN 1 ELSE 0 END) as credit_count,
-             SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) as cancelled_count
+        """SELECT COUNT(*) as orders, COALESCE(SUM(total),0) as revenue,
+             COALESCE(SUM(CASE WHEN payment_method='เงินสด'   AND status='completed' THEN cash_collected ELSE 0 END),0) as cash_in,
+             COALESCE(SUM(CASE WHEN payment_method='เงินสด'   AND status='completed' THEN 1 ELSE 0 END),0) as cash_count,
+             COALESCE(SUM(CASE WHEN payment_method='โอน+สลิป' AND status='completed' THEN total ELSE 0 END),0) as transfer_in,
+             COALESCE(SUM(CASE WHEN payment_method='โอน+สลิป' AND status='completed' THEN 1 ELSE 0 END),0) as transfer_count,
+             COALESCE(SUM(CASE WHEN payment_method='เครดิต'   AND status='completed' THEN total ELSE 0 END),0) as credit_in,
+             COALESCE(SUM(CASE WHEN payment_method='เครดิต'   AND status='completed' THEN 1 ELSE 0 END),0) as credit_count,
+             COALESCE(SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END),0) as cancelled_count
            FROM orders WHERE date=?""",
         (today,)
     ).fetchone()
