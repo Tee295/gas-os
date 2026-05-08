@@ -148,7 +148,13 @@ async function loadJobs() {
   if (!D.staff) return;
   try {
     const res = await fetch('/api/driver/orders', { credentials: 'same-origin' });
-    if (res.status === 401) { doLogout(); return; }
+    // 401 = no session, 403 = wrong role (e.g. supervisor cookie active instead of driver)
+    if (res.status === 401 || res.status === 403) {
+      // Stop polling immediately — prevents log spam after role switch / logout
+      if (D.pollTimer) { clearInterval(D.pollTimer); D.pollTimer = null; }
+      doLogout();
+      return;
+    }
     const data = await res.json();
     D.jobs = data.orders || [];
     renderJobs();
@@ -339,6 +345,11 @@ async function loadCash() {
   if (!D.staff) return;
   try {
     const res = await fetch('/api/driver/cash/summary', { credentials: 'same-origin' });
+    if (res.status === 401 || res.status === 403) {
+      if (D.pollTimer) { clearInterval(D.pollTimer); D.pollTimer = null; }
+      doLogout();
+      return;
+    }
     const data = await res.json();
     D.cashSummary = data;
     renderCash(data);
